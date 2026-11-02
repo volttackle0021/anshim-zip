@@ -2,7 +2,7 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#0c2a66">
 <title>관리자 · 우리동네 아파트 안심.ZIP</title>
-<link rel="icon" href="app-icon-192.png">
+<link rel="icon" href="app-icon-192.png"><link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{--bg:#eaf1fb;--surface:#fff;--ink:#0c2a66;--muted:#51638a;--line:#c4d3ea;--alert:#c8202f;--safe:#0b6e5b;--safe-bg:#e1f3ee;--warn:#8a5a00;--warn-bg:#fdf0d2;--primary:#0c2a66;--primary-ink:#fff}
 @media (prefers-color-scheme:dark){:root{--bg:#0e1626;--surface:#17233a;--ink:#eaf0f8;--muted:#a3b0c4;--line:#2b3a55;--alert:#ff5a66;--safe:#5fd6b9;--safe-bg:#12352d;--warn:#f2c35b;--warn-bg:#3a2d0c;--primary:#eaf0f8;--primary-ink:#0e1626;color-scheme:dark}}
@@ -45,7 +45,7 @@ function setMsg(t,ok){var m=$("m");if(m)m.innerHTML=msg(t,ok)}
 function errT(e){return (e&&e.message)?e.message:"오류가 발생했습니다."}
 function v(id){var e=$(id);return e?e.value.trim():""}
 function nz(x){return x===""?null:x}
-function hdr(){return '<div class="top"><h1>우리동네 아파트 안심.ZIP 관리자</h1><div><span class="muted">'+esc(ME.email)+' · '+(ME.role==="super"?"소방본부 담당":esc(ME.station||"")+" 담당")+'</span> <button id="out">로그아웃</button></div></div>'}
+function hdr(){return '<p style="margin:12px 0 0"><a href="./" style="color:var(--muted);font-size:14px">← 앱으로 돌아가기</a></p><div class="top"><h1>우리동네 아파트 안심.ZIP 관리자</h1><div><span class="muted">'+esc(ME.email)+' · '+(ME.role==="super"?"소방본부 담당":esc(ME.station||"")+" 담당")+'</span> <button id="out">로그아웃</button></div></div>'}
 function loginView(m){
   $("app").innerHTML='<h1>관리자 로그인</h1><div class="card"><label for="em">이메일</label><input id="em" type="email" autocomplete="username"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password"><div class="row"><button class="p" id="login">로그인</button></div><div id="m">'+msg(m)+'</div></div><p class="muted">관리자 계정은 소방서 담당자에게만 발급됩니다.</p>';
   $("login").onclick=doLogin;$("pw").onkeydown=function(e){if(e.key==="Enter")doLogin()}}
@@ -108,6 +108,18 @@ function saveComplex(c){
   var q=c.id?sb.from("complexes").update(row).eq("id",c.id).select().single():sb.from("complexes").insert(row).select().single();
   q.then(function(r){if(r.error)return setMsg(r.error.code==="23505"?"같은 이름의 단지가 이미 있습니다.":errT(r.error));
     ST.cid=r.data.id;ST.msgok=true;Promise.all([sb.from("complexes").select("id,region_id,name,address,fire_station,info,published").order("name")]).then(function(x){ST.complexes=x[0].data.filter(function(c){return ME.role==="super"||c.fire_station===ME.station});ST.view="complex";draw("저장했습니다.")})})}
+var PK=[["door","옥상 출입문 사진"],["floor","경량칸막이·대피공간 사용법 사진"],["fire","소방시설 위치 사진"]];
+function pubUrl(p){return SB_URL+"/storage/v1/object/public/photos/"+p}
+function shrink(file){return new Promise(function(ok,no){var u=URL.createObjectURL(file),im=new Image();im.onload=function(){var m=1280,w=im.width,h=im.height,k=Math.min(1,m/Math.max(w,h));var c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(function(b){b?ok(b):no(new Error("사진을 변환하지 못했습니다."))},"image/jpeg",0.82)};im.onerror=function(){no(new Error("사진을 읽지 못했습니다."))};im.src=u})}
+function photoCard(b){
+  if(!b.id)return '<div class="card"><h2>사진</h2><p class="muted">동을 먼저 저장하면 사진을 올릴 수 있습니다.</p></div>';
+  var ph=(b.info&&b.info.photos)||{};
+  return '<div class="card"><h2>사진</h2><p class="muted">휴대폰에서는 카메라로 바로 찍어 올릴 수 있습니다. 사진은 자동으로 줄여서 저장됩니다. 올리면 화면이 새로 고쳐지니, 입력한 내용은 먼저 저장해 주세요.</p>'+PK.map(function(k){var p=ph[k[0]];return '<h3>'+k[1]+'</h3>'+(p?'<img src="'+esc(pubUrl(p))+'" alt="" style="max-width:100%;border-radius:8px;border:1px solid var(--line)">':'<p class="muted">등록된 사진이 없습니다.</p>')+'<div class="row" style="margin-top:6px"><input type="file" accept="image/*" data-pk="'+k[0]+'" style="flex:1">'+(p?'<button class="d" data-pd="'+k[0]+'">사진 삭제</button>':'')+'</div>'}).join("")+'</div>'}
+function savePhotos(b,ph){var info=Object.assign({},b.info||{},{photos:ph});return sb.from("buildings").update({info:info,updated_at:new Date().toISOString()}).eq("id",b.id).then(function(r){if(r.error)throw r.error;b.info=info})}
+function bindPhotos(b){
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pk]"),function(el){el.onchange=function(){var f=el.files[0];if(!f)return;var k=el.getAttribute("data-pk");setMsg("사진을 올리는 중입니다.");
+    shrink(f).then(function(blob){var path=ST.cid+"/"+b.id+"/"+k+"-"+Date.now()+".jpg";return sb.storage.from("photos").upload(path,blob,{contentType:"image/jpeg",upsert:true}).then(function(r){if(r.error)throw r.error;var ph=Object.assign({},(b.info&&b.info.photos)||{}),old=ph[k];ph[k]=path;return savePhotos(b,ph).then(function(){if(old)sb.storage.from("photos").remove([old])})})}).then(function(){ST.msgok=true;ST.msg="사진을 저장했습니다.";dongView()},function(e){setMsg(errT(e))})}});
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pd]"),function(el){el.onclick=function(){var k=el.getAttribute("data-pd");if(!confirm("이 사진을 삭제할까요?"))return;var ph=Object.assign({},(b.info&&b.info.photos)||{}),old=ph[k];delete ph[k];savePhotos(b,ph).then(function(){if(old)sb.storage.from("photos").remove([old]);ST.msg="사진을 삭제했습니다.";dongView()},function(e){setMsg(errT(e))})}})}
 function dongView(){
   var b=(ST.buildings||[]).filter(function(x){return x.id===ST.bid})[0]||{name:"",info:{}};
   var i=b.info||{},e=i.extra||{},fl=(i.floors&&i.floors.length)?i.floors:[["","확인 필요",""]];
@@ -122,8 +134,9 @@ function dongView(){
    '<h3>층 구간별 세대 대피시설</h3><div id="rows"></div><button id="addrow" style="margin-top:8px">구간 추가</button>'+
    '<h3>소방시설 위치</h3><div class="grid">'+fld("ey","옥내소화전",e.hyd)+fld("es","스프링클러",e.sprk)+fld("ep","화재 수신반",e.panel)+fld("et","계단",e.stairs)+fld("eh","복도 형태",e.hall)+fld("el","승강기",e.elev)+'</div>'+
    '<div class="row"><button class="p" id="saved">저장</button>'+(b.id?'<button class="d" id="delb">동 삭제</button>':'')+'</div></div>';
+  h+=photoCard(b);
   $("app").innerHTML=h;$("out").onclick=logout;
-  $("du").type="date";
+  $("du").type="date";bindPhotos(b);
   $("back").onclick=function(){ST.view="complex";draw()};
   function rows(){$("rows").innerHTML=ST.rows.map(function(r,k){return '<div class="frow"><input aria-label="층 구간" data-r="'+k+'" data-c="0" value="'+esc(r[0])+'" placeholder="예: 4~15층"><select aria-label="시설 종류" data-r="'+k+'" data-c="1">'+KINDS.map(function(o){return '<option'+(o===r[1]?' selected':'')+'>'+o+'</option>'}).join("")+'</select><input aria-label="위치와 비고" data-r="'+k+'" data-c="2" value="'+esc(r[2])+'" placeholder="위치·비고"><button data-x="'+k+'" aria-label="구간 삭제">×</button></div>'}).join("");
     Array.prototype.forEach.call(document.querySelectorAll("#rows [data-r]"),function(el){el.onchange=function(){ST.rows[+el.getAttribute("data-r")][+el.getAttribute("data-c")]=el.value}});
@@ -132,7 +145,7 @@ function dongView(){
   $("saved").onclick=function(){
     var n=v("dn");if(!n)return setMsg("동 이름을 입력해 주세요.");
     var fls=ST.rows.filter(function(r){return r[0]});
-    var info={roof:nz(v("dr")),refuge:nz(v("df")),door:nz(v("dd")),opener:nz(v("do")),openerNote:nz(v("dm")),obstacle:nz(v("dx")),updated:nz(v("du")),floors:fls.length?fls:null,extra:{hyd:nz(v("ey")),sprk:nz(v("es")),panel:nz(v("ep")),stairs:nz(v("et")),hall:nz(v("eh")),elev:nz(v("el"))}};
+    var info={roof:nz(v("dr")),refuge:nz(v("df")),door:nz(v("dd")),opener:nz(v("do")),openerNote:nz(v("dm")),obstacle:nz(v("dx")),updated:nz(v("du")),floors:fls.length?fls:null,photos:(b.info&&b.info.photos)||{},extra:{hyd:nz(v("ey")),sprk:nz(v("es")),panel:nz(v("ep")),stairs:nz(v("et")),hall:nz(v("eh")),elev:nz(v("el"))}};
     var row={complex_id:ST.cid,name:n,info:info,updated_at:new Date().toISOString()};
     var q=b.id?sb.from("buildings").update(row).eq("id",b.id):sb.from("buildings").insert(row);
     q.then(function(r){if(r.error)return setMsg(errT(r.error));ST.view="complex";ST.msgok=true;draw("동 정보를 저장했습니다.")})};
