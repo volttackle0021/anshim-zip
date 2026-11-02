@@ -182,7 +182,7 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
 .tile small{display:block;color:var(--muted);font-size:12px}
 .tile b{display:block;font-size:16px;margin-top:2px;word-break:keep-all}
 .big{min-height:104px;padding:14px 12px}
-.big b{font-size:19px}
+.big b{font-size:min(4.3vw,17px);white-space:nowrap;letter-spacing:-.02em}.big span{font-size:12.5px;line-height:1.4;min-height:2.8em}
 #splash .spt{font-size:clamp(21px,6.6vw,32px);white-space:nowrap}
 .call .sum.one{white-space:nowrap;font-size:min(15px,3.25vw);letter-spacing:-.02em}
 .paren{display:block;margin-top:2px;font-size:13px;color:var(--muted)}
@@ -191,7 +191,7 @@ body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gr
 body,button,select,input,summary,td,th,dd,dt,li,p,h1,h2,h3,h4,small{word-break:keep-all;overflow-wrap:break-word}
 .hero.home{position:relative;display:block;height:calc(min(23.5vw,96px) + 44px);box-sizing:border-box;padding:0 10px 22px 16px;margin-top:12px;text-align:left;overflow:hidden}
 .hero.home>div{position:static}
-.hero.home h1{position:absolute;left:16px;right:10px;bottom:calc(34px + 4.34vw);margin:0;font-size:4.3vw;white-space:nowrap;line-height:1.15}
+.hero.home h1{position:absolute;left:16px;right:10px;bottom:calc(34px + min(4.34vw,22.7px));margin:0;font-size:min(4.3vw,22.5px);white-space:nowrap;line-height:1.15}
 .hero.home .lead{position:absolute;left:16px;right:10px;bottom:32px;margin:0;white-space:nowrap;font-size:15px;letter-spacing:-.04em;line-height:1.4}
 .hero.home .mas{position:absolute;right:8px;bottom:3px;height:min(32.05vw,128px);width:auto;margin:0;border-radius:0;box-shadow:none}
 .pimg{display:block;width:100%;margin-top:10px;border-radius:10px;border:1px solid var(--line)}
@@ -201,9 +201,11 @@ body,button,select,input,summary,td,th,dd,dt,li,p,h1,h2,h3,h4,small{word-break:k
 .imgslide .pm{padding:10px 14px 8px;margin:0}
 .simg{display:block;width:100%;height:auto;aspect-ratio:16/10;background:var(--unk-bg);cursor:zoom-in}
 .imgslide .cap{padding:10px 14px 4px;font-size:14px}.imgslide .cap ul{margin:6px 0;padding-left:20px}.imgslide .cap .fines{margin:0}
+.imgslide .stxt{margin:0;padding:10px 14px 2px;font-size:16px;line-height:1.55;font-weight:600}
+.hero.fb h2{font-size:min(4.9vw,19px);white-space:nowrap;letter-spacing:-.03em}.hero.fb .lead{font-size:13px;letter-spacing:-.03em}
 .imgslide .zh{padding:2px 14px 10px;font-size:12px;color:var(--muted);text-align:right}
-.zoom{position:fixed;inset:0;z-index:60;background:#000;overflow:auto;-webkit-overflow-scrolling:touch}
-.zoom img{display:block;width:220vw;max-width:none;height:auto}
+.zoom{position:fixed;inset:0;z-index:60;background:#000;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:center;justify-content:center}.zoom.big2{display:block}.zoom .zt{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));text-align:center;color:#fff;font-size:13px;opacity:.85;pointer-events:none;text-shadow:0 1px 3px #000}
+.zoom img{display:block;width:100%;height:auto;max-height:100%;object-fit:contain;cursor:zoom-in}.zoom.big2 img{width:200vw;max-width:none;max-height:none;cursor:zoom-out}
 .zoom .zx{position:fixed;top:10px;right:10px;z-index:61;min-height:44px;padding:8px 16px;border-radius:8px;border:0;background:#fff;color:#0c2a66;font-weight:600}
 </style>
 </head><body>
@@ -307,7 +309,7 @@ function ul(a){return '<ul>'+a.map(function(t){return '<li>'+t+'</li>'}).join(""
 function ol(a){return '<ol>'+a.map(function(t){return '<li>'+t+'</li>'}).join("")+'</ol>'}
 var FIRE=[["우리 집에서 불이 난 경우", [["“불이야!” 하고 큰 소리로 알립니다.", "s-f1-1.webp"], ["119에 신고합니다. 불이 났다는 것, 주소, 지금 집 안에 있다는 것을 알립니다.", "s-f1-2.webp"], ["불이 작을 때는 소화기나 옥내소화전으로 불을 끕니다. 불이 계속되면 즉시 대피합니다.", "s-f1-3.webp"], ["진압이 안 되면 현관문을 닫고 계단으로 이동합니다.", "s-f1-4.webp"], ["연기가 많으면 젖은 수건으로 코와 입을 막고 낮은 자세로 이동합니다.", "s-f1-5.webp"], ["엘리베이터는 이용하지 않아요.", "s-f1-6.webp"]]], ["다른 곳에서 불이 났고 대피할 수 있는 경우", [["비상방송이나 119화재대피안심콜 메시지를 확인하고 지시에 따라 행동합니다.", "s-f2-1.webp"], ["유도등과 비상구 표시에 따라 안전한 곳으로 이동합니다.", "s-f2-2.webp"], ["복도나 계단에 연기가 차 있으면 방화문을 닫습니다.", "s-f2-3.webp"], ["복도나 계단으로 대피하기 어려우면 집 안의 대피공간으로 이동하거나 경량칸막이를 파괴하여 옆 세대로 대피합니다.", "s-f2-4.webp"]]]];
 var PREP=[{"g": "전기화재 예방", "hot": 1, "t": "출입문 근처에서는 충전하지 않습니다.", "img": "s-p01.webp"}, {"g": "전기화재 예방", "hot": 1, "t": "충전이 끝나면 플러그를 뽑고, 정품 충전기를 쓰며, 멀티탭은 허용 전력 이내로 사용합니다.", "img": "s-p02.webp", "cap": "<p class=\"src\">최근 5년(’21~’25) 겨울철 화재 원인은 부주의 49.6%, 전기적 요인 25.0%로 둘을 합치면 약 75%였습니다. (소방 화재통계 분석)</p>"}, {"g": "소화기", "t": "소화기는 한 달에 한 번 압력계를 확인하고, 그늘지고 서늘한 곳에 보관합니다.", "img": "s-p03.webp"}, {"g": "소화기", "t": "소화기 사용법 4단계", "img": "s-p04.webp"}, {"g": "자동확산소화기", "t": "자동확산소화기 점검하기", "img": "s-p05.webp"}, {"g": "옥내소화전", "t": "옥내소화전 사용 순서", "img": "s-p06.webp"}, {"g": "휴대용 비상조명등", "t": "휴대용비상조명등 점검 및 사용 안내", "img": "s-p07.webp"}, {"g": "단독경보형 감지기", "t": "단독경보형 감지기 점검 방법 안내", "img": "s-p08.webp", "cap": "<ul><li>최근 10년(’16~’25) 주택화재는 전체 화재의 약 27.3%이지만, 화재 사망자의 약 59.8%가 주택에서 발생했습니다. 특히 야간·새벽 시간대와 연기 흡입에 따른 인명피해 비중이 높았습니다. (소방 화재통계 분석)</li><li>올해 10월 전남 나주와 구례에서 보급 시범사업이 시작된다고 발표되었습니다. 자세한 내용은 구례소방서에 문의해 주세요.</li></ul>"}, {"g": "방화문과 피난통로", "t": "방화문과 피난통로 안전수칙 안내", "img": "s-p09.webp", "cap": "<div class=\"fines\"><b>금지 행위</b> (소방시설법 제16조)<ul><li>피난시설·방화구획·방화시설을 폐쇄하거나 훼손</li><li>복도·계단·출입구 주변에 물건을 쌓거나 장애물 설치</li><li>방화문 등 시설을 임의로 변경</li><li>소방활동에 지장을 주는 행위</li></ul><b>300만 원 이하의 과태료</b> 대상이 될 수 있습니다. 개선 명령을 따르지 않으면 3년 이하 징역 또는 3천만 원 이하 벌금까지 가능합니다.</div>"}, {"g": "소방시설 자체점검", "t": "공동주택 세대별 소방시설 점검 안내", "img": "s-p10.webp", "cap": "<div class=\"fines\">점검하지 않으면 <b>50만 원 이하의 과태료</b> 대상이 될 수 있습니다. 부과 유예 기간은 2026년 11월 30일까지로 안내되어 있습니다. 정확한 시기는 관리사무소 공지와 소방서에서 확인해 주세요.</div>"}];
-function fireSlides(i){var f=FIRE[i];return f[1].map(function(x){return {g:f[0],t:x[0],img:x[1]}})}
+function fireSlides(i){var f=FIRE[i];return f[1].map(function(x){return {g:f[0],t:x[0],img:x[1],say:1}})}
 var CAR={slides:[],i:0,auto:true,timer:null,jump:false};
 function groups(){var gs=[];CAR.slides.forEach(function(x){if(gs.indexOf(x.g)<0)gs.push(x.g)});return gs}
 function carStart(slides,jump){CAR.slides=slides;CAR.i=0;CAR.jump=!!jump;CAR.auto=!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);carDraw();carTimer()}
@@ -315,11 +317,11 @@ function carTimer(){clearInterval(CAR.timer);if(CAR.auto)CAR.timer=setInterval(f
 function carStop(){CAR.auto=false;clearInterval(CAR.timer)}
 function zoomImg(src,alt){
   carStop();var o=document.createElement("div");o.className="zoom";o.setAttribute("role","dialog");o.setAttribute("aria-label","크게 보기");
-  o.innerHTML='<button class="zx" aria-label="닫기">닫기 ✕</button><img src="'+esc(src)+'" alt="'+esc(alt)+'">';
+  o.innerHTML='<button class="zx" aria-label="닫기">닫기 ✕</button><img src="'+esc(src)+'" alt="'+esc(alt)+'"><div class="zt">그림을 누르면 더 크게 / 작게 볼 수 있어요</div>';
   function close(){document.body.removeChild(o);document.body.style.overflow=""}
-  o.querySelector(".zx").onclick=close;document.body.appendChild(o);document.body.style.overflow="hidden"}
+  o.querySelector(".zx").onclick=function(e){e.stopPropagation();close()};o.querySelector("img").onclick=function(){o.classList.toggle("big2");o.scrollLeft=0;o.scrollTop=0};document.body.appendChild(o);document.body.style.overflow="hidden"}
 function slideHTML(sl,i,n){
-  if(sl.img)return '<article class="slide imgslide'+(sl.hot?' hot2':'')+'" aria-label="'+(i+1)+' / '+n+'"><div class="meta pm"><span class="grp">'+esc(sl.g)+'</span><span class="cnt">'+(i+1)+' / '+n+'</span></div><img class="simg" src="'+esc(sl.img)+'" alt="'+esc(sl.t||"")+'" '+(i===0?'':'loading="lazy" ')+'width="1280" height="800">'+(sl.cap?'<div class="cap">'+sl.cap+'</div>':'')+'<div class="zh">그림을 누르면 크게 볼 수 있어요</div></article>';
+  if(sl.img)return '<article class="slide imgslide'+(sl.hot?' hot2':'')+'" aria-label="'+(i+1)+' / '+n+'"><div class="meta pm"><span class="grp">'+esc(sl.g)+'</span><span class="cnt">'+(i+1)+' / '+n+'</span></div><img class="simg" src="'+esc(sl.img)+'" alt="'+esc(sl.t||"")+'" '+(i===0?'':'loading="lazy" ')+'width="1280" height="800">'+(sl.say?'<p class="stxt">'+esc(sl.t)+'</p>':'')+(sl.cap?'<div class="cap">'+sl.cap+'</div>':'')+'<div class="zh">그림을 누르면 크게 볼 수 있어요</div></article>';
   var gm=(S.view==="fire")?IL_TQ:IL_FRONT;
   return '<article class="slide'+(sl.hot?' hot2':'')+'" aria-label="'+(i+1)+' / '+n+'"><div class="photo pic">'+(sl.img?'<img src="'+esc(sl.img)+'" alt="">':'사진 자리: '+esc(sl.p))+'</div><div class="stext"><div class="meta"><span class="grp">'+esc(sl.g)+'</span><span class="cnt">'+(i+1)+' / '+n+'</span></div>'+(sl.t?'<h3 class="st">'+esc(sl.t)+'</h3>':'')+'<div class="say"><img class="gi" src="'+gm+'" alt="일구"><div class="sbody bubble">'+sl.b+'</div></div></div></article>'}
 function carDraw(){
@@ -345,7 +347,7 @@ function carDraw(){
   var c=$("gch"),cur=c&&c.querySelector(".on");if(c&&cur)c.scrollLeft=cur.offsetLeft-(c.clientWidth-cur.clientWidth)/2;
   if(act){var f=el.querySelector('[data-act="'+act+'"]');if(f)f.focus({preventScroll:true})}}
 function fire(){
-  return nav("우리 집에 불이 났어요!")+band('지금 상황을 고르세요','일구가 대피 방법을 알려 드려요',IL_TQ)+'<a class="call119" href="tel:119">119 신고</a><p style="font-size:13px;color:var(--muted);margin:6px 0 0">전화 연결이 되지 않으면 화면의 119를 눌러 직접 전화 앱에서 걸어 주세요.</p>'+
+  return nav("우리 집에 불이 났어요!")+band('불이 난 곳은 어디인가요?','화재 위치에 따라 안전한 행동 요령을 알려드려요',IL_TQ).replace('hero sec withm','hero sec withm fb')+'<a class="call119" href="tel:119">119 신고</a><p style="font-size:13px;color:var(--muted);margin:6px 0 0">전화 연결이 되지 않으면 화면의 119를 눌러 직접 전화 앱에서 걸어 주세요.</p>'+
   '<div class="sits" role="group" aria-label="상황 선택">'+FIRE.map(function(f,i){return '<button class="sit'+(i===S.sit?' on':'')+'" data-sit="'+i+'" aria-pressed="'+(i===S.sit?'true':'false')+'">'+f[0]+'</button>'}).join("")+'</div><div id="car" class="car"></div>'+
   '<span class="draft">문구는 초안입니다. 소방서 검수 후 확정됩니다.</span>'+foot()}
 function prep(){
