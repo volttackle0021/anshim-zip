@@ -45,33 +45,167 @@ function setMsg(t,ok){var m=$("m");if(m)m.innerHTML=msg(t,ok)}
 function errT(e){return (e&&e.message)?e.message:"오류가 발생했습니다."}
 function v(id){var e=$(id);return e?e.value.trim():""}
 function nz(x){return x===""?null:x}
-function hdr(){return '<p style="margin:12px 0 0"><a href="./" style="color:var(--muted);font-size:14px">← 앱으로 돌아가기</a></p><div class="top"><h1>우리동네 아파트 안심.ZIP 관리자</h1><div><span class="muted">'+esc(ME.email)+' · '+(ME.role==="super"?"소방본부 담당":esc(ME.station||"")+" 담당")+'</span> <button id="out">로그아웃</button></div></div>'}
+function scopeOk(c){return ME.role==="manager"?c.id===ME.cid:(ME.role==="super"||c.fire_station===ME.station)}
+function getDid(){try{var d=localStorage.getItem("did");if(!d){var b=new Uint8Array(12);crypto.getRandomValues(b);d=Array.prototype.map.call(b,function(x){return ("0"+x.toString(16)).slice(-2)}).join("");localStorage.setItem("did",d)}return d}catch(e){return null}}
+function devLabel(){var u=navigator.userAgent||"",os=/Android/.test(u)?"Android":/iPhone|iPad/.test(u)?"iOS":/Windows/.test(u)?"Windows":/Mac/.test(u)?"Mac":"기타",br=/SamsungBrowser/.test(u)?"삼성 인터넷":/Edg\//.test(u)?"Edge":/Chrome/.test(u)?"Chrome":/Safari/.test(u)?"Safari":"브라우저";return os+" · "+br}
+function hdr(){return '<p style="margin:12px 0 0"><a href="./" style="color:var(--muted);font-size:14px">← 앱으로 돌아가기</a></p><div class="top"><h1>우리동네 아파트 안심.ZIP 관리자</h1><div><span class="muted">'+esc(ME.email)+' · '+(ME.role==="super"?"소방본부 담당":ME.role==="manager"?"아파트 관리자":esc(ME.station||"")+" 담당")+'</span> <button id="out">로그아웃</button></div></div>'}
 function loginView(m){
-  $("app").innerHTML='<h1>관리자 로그인</h1><div class="card"><label for="em">이메일</label><input id="em" type="email" autocomplete="username"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password"><div class="row"><button class="p" id="login">로그인</button></div><div id="m">'+msg(m)+'</div></div><p class="muted">관리자 계정은 소방서 담당자에게만 발급됩니다.</p>';
-  $("login").onclick=doLogin;$("pw").onkeydown=function(e){if(e.key==="Enter")doLogin()}}
+  $("app").innerHTML='<h1>관리자 로그인</h1><div class="card"><label for="em">이메일</label><input id="em" type="email" autocomplete="username"><label for="pw">비밀번호</label><input id="pw" type="password" autocomplete="current-password"><div class="row"><button class="p" id="login">로그인</button><button id="signup">관리사무소 담당자 가입</button></div><div id="m">'+msg(m)+'</div></div><p class="muted">관리자 계정은 소방서 담당자에게만 발급됩니다.</p>';
+  $("signup").onclick=function(){signupView()};$("login").onclick=doLogin;$("pw").onkeydown=function(e){if(e.key==="Enter")doLogin()}}
 function doLogin(){setMsg("확인하는 중입니다.");sb.auth.signInWithPassword({email:v("em"),password:$("pw").value}).then(function(r){if(r.error)return setMsg("이메일이나 비밀번호가 맞지 않습니다.");start()})}
+function gate(t,p){ME=null;$("app").innerHTML='<h1>'+esc(t)+'</h1><div class="card"><p>'+esc(p)+'</p><div class="row"><button id="rf">새로고침</button><button id="out">로그아웃</button></div></div>';$("out").onclick=logout;$("rf").onclick=function(){start()}}
+function signupView(m){
+  $("app").innerHTML='<h1>관리사무소 담당자 가입</h1><div class="card"><p class="muted">소방서에서 받은 가입코드가 필요합니다. 가입 후 소방서가 승인하면 사용할 수 있습니다. 업무용 이메일 사용을 권합니다.</p><label for="se">이메일</label><input id="se" type="email" autocomplete="username"><label for="sp">비밀번호 (8자 이상)</label><input id="sp" type="password" autocomplete="new-password"><label for="sq">비밀번호 확인</label><input id="sq" type="password" autocomplete="new-password"><label for="sc">가입코드</label><input id="sc" autocomplete="off" placeholder="XXXXX-XXXXX"><div class="row"><button class="p" id="sgo">가입</button><button id="sback">← 로그인</button></div><div id="m">'+msg(m)+'</div></div>';
+  $("sback").onclick=function(){loginView()};
+  $("sgo").onclick=function(){var em=v("se"),pw=$("sp").value,code=v("sc");
+    if(!em||!code)return setMsg("이메일과 가입코드를 입력해 주세요.");if(pw.length<8)return setMsg("비밀번호는 8자 이상이어야 합니다.");if(pw!==$("sq").value)return setMsg("비밀번호 확인이 맞지 않습니다.");
+    setMsg("가입하는 중입니다.");
+    sb.auth.signUp({email:em,password:pw}).then(function(r){
+      if(r.error)return setMsg(errT(r.error));
+      if(!r.data||!r.data.session)return setMsg("확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 로그인하면 가입코드를 입력하는 화면이 나옵니다.",true);
+      sb.rpc("redeem_manager_code",{p_code:code}).then(function(x){
+        if(x.error||x.data==="invalid"){setMsg("가입은 되었지만 코드가 맞지 않거나 만료되었습니다. 로그인한 뒤 올바른 코드를 다시 입력해 주세요.");return}
+        start()})})}}
+function noRoleView(u){
+  sb.from("manager_requests").select("id,status,complex_id").eq("user_id",u.id).order("created_at",{ascending:false}).then(function(r){
+    var q=(r.data||[])[0];
+    if(q&&q.status==="pending")return gate("승인 대기 중입니다","소방서에서 확인한 뒤 승인하면 사용할 수 있습니다.");
+    if(q&&q.status==="rejected")return gate("가입이 승인되지 않았습니다","소방서에 문의해 주세요.");
+    if(q&&q.status==="revoked")return gate("사용 권한이 해지되었습니다","소방서에 문의해 주세요.");
+    ME=null;$("app").innerHTML='<h1>가입코드 입력</h1><div class="card"><p>이 계정은 아직 관리자로 등록되지 않았습니다. 관리사무소 담당자는 소방서에서 받은 가입코드를 입력해 주세요.</p><label for="mc">가입코드</label><input id="mc" autocomplete="off" placeholder="XXXXX-XXXXX"><div class="row"><button class="p" id="mcgo">신청</button><button id="out">로그아웃</button></div><div id="m"></div></div>';
+    $("out").onclick=logout;
+    $("mcgo").onclick=function(){var c=v("mc");if(!c)return setMsg("가입코드를 입력해 주세요.");
+      sb.rpc("redeem_manager_code",{p_code:c}).then(function(x){
+        if(x.error)return setMsg(errT(x.error));
+        if(x.data==="invalid")return setMsg("코드가 맞지 않거나 만료되었습니다.");
+        if(x.data==="already")return setMsg("이미 등록된 계정입니다.");
+        start()})}})}
 function start(){
   sb.auth.getSession().then(function(r){var s=r.data.session;if(!s)return loginView();
-    sb.from("admins").select("role,station").eq("user_id",s.user.id).maybeSingle().then(function(a){
-      if(a.error||!a.data){ME=null;$("app").innerHTML='<h1>권한 없음</h1><div class="card"><p>이 계정은 관리자로 등록되지 않았습니다. 소방서 담당자에게 문의해 주세요.</p><button id="out">로그아웃</button></div>';$("out").onclick=logout;return}
-      ME={email:s.user.email,role:a.data.role,station:a.data.station};ST.view="list";load()})})}
+    sb.from("admins").select("role,station,complex_id").eq("user_id",s.user.id).maybeSingle().then(function(a){
+      if(a.error)return gate("확인하지 못했습니다","잠시 후 다시 시도해 주세요.");
+      if(!a.data)return noRoleView(s.user);
+      ME={email:s.user.email,role:a.data.role,station:a.data.station,cid:a.data.complex_id};
+      if(ME.role!=="manager"){ST.view="list";return load()}
+      var d=getDid();if(!d)return gate("이 브라우저에서는 사용할 수 없습니다","브라우저의 저장 기능을 켜거나 다른 브라우저를 사용해 주세요.");
+      sb.rpc("register_device",{p_device:d,p_label:devLabel()}).then(function(x){
+        if(x.error)return gate("확인하지 못했습니다",errT(x.error));
+        if(x.data==="approved"){ST.view="list";return load()}
+        if(x.data==="rejected")return gate("이 기기는 사용할 수 없습니다","소방서에 문의해 주세요.");
+        gate("이 기기는 승인 대기 중입니다","소방서에서 승인하면 이 기기에서 사용할 수 있습니다. 승인 후 새로고침해 주세요.")})})})}
 function logout(){sb.auth.signOut().then(function(){ME=null;loginView()})}
 function load(){
   Promise.all([sb.from("regions").select("id,name").order("sort").order("name"),sb.from("complexes").select("id,region_id,name,address,fire_station,info,published").order("name")]).then(function(r){
     if(r[0].error||r[1].error)return draw(errT(r[0].error||r[1].error));
-    ST.regions=r[0].data;ST.complexes=r[1].data.filter(function(c){return ME.role==="super"||c.fire_station===ME.station});draw()})}
+    ST.regions=r[0].data;ST.complexes=r[1].data.filter(scopeOk);draw()})}
 function regName(id){var r=ST.regions.filter(function(x){return x.id===id})[0];return r?r.name:""}
-function draw(m){ST.msg=m||null;if(ST.view==="list")listView();else if(ST.view==="complex")complexView();else dongView()}
+function draw(m){ST.msg=m||null;if(ST.view==="list")listView();else if(ST.view==="complex")complexView();else if(ST.view==="faq")faqView();else if(ST.view==="news")newsListView();else if(ST.view==="newse")newsEditView();else dongView()}
 function listView(){
-  var h=hdr()+msg(ST.msg)+'<div class="card"><div class="top"><h2>아파트 단지</h2><button class="p" id="addc">+ 아파트 추가</button></div>';
+  var h=hdr()+msg(ST.msg)+'<div class="card"><div class="top"><h2>아파트 단지</h2>'+(ME.role!=="manager"?'<button class="p" id="addc">+ 아파트 추가</button>':'')+'</div>';
   if(!ST.complexes.length)h+='<p class="muted">등록된 단지가 없습니다. 아파트를 추가해 주세요.</p>';
   ST.complexes.forEach(function(c){h+='<div class="item"><div><b>'+esc(c.name)+'</b> <span class="badge'+(c.published?' on':'')+'">'+(c.published?'공개 중':'비공개')+'</span><div class="muted">'+esc(regName(c.region_id))+' · '+esc(c.fire_station||"담당 서 미지정")+'</div></div><button data-c="'+c.id+'">열기</button></div>'});
   h+='</div>';
   if(ME.role==="super")h+='<div class="card"><h2>시·군·구 추가</h2><div class="row" style="margin-top:0"><input id="nr" placeholder="예: 곡성군" style="flex:1"><button id="addr">추가</button></div><p class="muted">등록된 시·군·구: '+ST.regions.map(function(r){return esc(r.name)}).join(", ")+'</p></div>';
-  $("app").innerHTML=h;$("out").onclick=logout;
-  $("addc").onclick=function(){ST.cid=null;ST.view="complex";draw()};
+  if(ME.role==="super")h+='<div class="card"><div class="top"><h2>자주 묻는 질문</h2><button class="p" id="openfaq">질문·답변 관리</button></div><p class="muted">앱 홈 화면 맨 아래에 나오는 Q&A를 등록하고 고칩니다.</p></div>';
+  if(ME.role!=="manager")h+='<div class="card"><div class="top"><h2>소식·공지</h2><button id="newsb">관리</button></div><p class="muted">안전뉴스, 카드뉴스, 법령 개정, 공지를 올립니다.</p></div>';
+  if(ME.role!=="manager")h+='<div class="card" id="appr"><h2>아파트 관리자 승인</h2><p class="muted">불러오는 중입니다.</p></div>';
+  if(ME.role==="super")h+='<div class="card" id="stats"><h2>이용 현황</h2><p class="muted">불러오는 중입니다.</p></div>';
+  $("app").innerHTML=h;$("out").onclick=logout;if($("newsb"))$("newsb").onclick=function(){ST.view="news";draw()};if(ME.role!=="manager")loadApprovals();if(ME.role==="super"){loadStats();$("openfaq").onclick=function(){ST.view="faq";draw()}}
+  if($("addc"))$("addc").onclick=function(){ST.cid=null;ST.view="complex";draw()};
   Array.prototype.forEach.call(document.querySelectorAll("[data-c]"),function(b){b.onclick=function(){ST.cid=+b.getAttribute("data-c");ST.view="complex";draw()}});
   if($("addr"))$("addr").onclick=function(){var n=v("nr");if(!n)return;sb.from("regions").insert({name:n,sort:ST.regions.length+1}).then(function(r){if(r.error)return draw(errT(r.error));load()})}}
+function loadApprovals(){
+  Promise.all([sb.from("manager_requests").select("id,user_id,email,complex_id,status,created_at").order("created_at",{ascending:false}),sb.from("admin_devices").select("id,user_id,label,status,created_at").eq("status","pending")]).then(function(r){
+    var e=$("appr");if(!e)return;if(r[0].error)return e.innerHTML='<h2>아파트 관리자 승인</h2><p class="muted">불러오지 못했습니다.</p>';
+    var reqs=r[0].data||[],devs=r[1].data||[],em={};reqs.forEach(function(x){em[x.user_id]=x});
+    var pend=reqs.filter(function(x){return x.status==="pending"}),ok=reqs.filter(function(x){return x.status==="approved"});
+    function d10(t){return esc(String(t||"").slice(0,10))}
+    var h='<h2>아파트 관리자 승인</h2><p class="muted">가입 신청, 새 기기 승인, 등록된 관리자를 관리합니다.</p><h3>가입 신청 ('+pend.length+')</h3>'+
+     (pend.length?pend.map(function(x){return '<div class="item"><div><b>'+esc(x.email||"")+'</b><div class="muted">'+esc(scopeName(x.complex_id))+' · '+d10(x.created_at)+'</div></div><div><button class="p" data-ra="'+x.id+'">승인</button> <button data-rr="'+x.id+'">거절</button></div></div>'}).join(""):'<p class="muted">대기 중인 신청이 없습니다.</p>')+
+     '<h3>기기 승인 요청 ('+devs.length+')</h3>'+
+     (devs.length?devs.map(function(x){var q=em[x.user_id]||{};return '<div class="item"><div><b>'+esc(q.email||"알 수 없음")+'</b><div class="muted">'+esc(x.label||"")+' · '+d10(x.created_at)+'</div></div><div><button class="p" data-da="'+x.id+'">승인</button> <button data-dr="'+x.id+'">거절</button></div></div>'}).join(""):'<p class="muted">대기 중인 기기가 없습니다.</p>')+
+     '<h3>등록된 아파트 관리자 ('+ok.length+')</h3>'+
+     (ok.length?ok.map(function(x){return '<div class="item"><div><b>'+esc(x.email||"")+'</b><div class="muted">'+esc(scopeName(x.complex_id))+'</div></div><button class="d" data-rv="'+x.user_id+'">해지</button></div>'}).join(""):'<p class="muted">등록된 관리자가 없습니다.</p>');
+    e.innerHTML=h;
+    function call(fn,args,okmsg){sb.rpc(fn,args).then(function(x){if(x.error)return setMsg(errT(x.error));ST.msgok=true;draw(okmsg)})}
+    Array.prototype.forEach.call(e.querySelectorAll("[data-ra]"),function(b){b.onclick=function(){call("decide_manager",{p_request:+b.getAttribute("data-ra"),p_ok:true},"승인했습니다.")}});
+    Array.prototype.forEach.call(e.querySelectorAll("[data-rr]"),function(b){b.onclick=function(){call("decide_manager",{p_request:+b.getAttribute("data-rr"),p_ok:false},"거절했습니다.")}});
+    Array.prototype.forEach.call(e.querySelectorAll("[data-da]"),function(b){b.onclick=function(){call("decide_device",{p_id:+b.getAttribute("data-da"),p_ok:true},"기기를 승인했습니다.")}});
+    Array.prototype.forEach.call(e.querySelectorAll("[data-dr]"),function(b){b.onclick=function(){call("decide_device",{p_id:+b.getAttribute("data-dr"),p_ok:false},"기기를 거절했습니다.")}});
+    Array.prototype.forEach.call(e.querySelectorAll("[data-rv]"),function(b){b.onclick=function(){if(confirm("이 관리자의 사용 권한을 해지할까요?"))call("revoke_manager",{p_user:b.getAttribute("data-rv")},"해지했습니다.")}})})}
+function loadStats(){
+  sb.from("daily_visits").select("day,visits,visitors").order("day",{ascending:false}).then(function(r){
+    var e=$("stats");if(!e)return;if(r.error)return e.innerHTML='<h2>이용 현황</h2><p class="muted">불러오지 못했습니다.</p>';
+    var rows=r.data||[];if(!rows.length)return e.innerHTML='<h2>이용 현황</h2><p class="muted">아직 접속 기록이 없습니다.</p>';
+    var mo={},tv=0,tp=0;rows.forEach(function(x){var m=x.day.slice(0,7);mo[m]=mo[m]||[0,0];mo[m][0]+=x.visits;mo[m][1]+=x.visitors;tv+=x.visits;tp+=x.visitors});
+    var ms=Object.keys(mo).sort().reverse();
+    function tb(h,b){return '<div class="tablewrap" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>'+h.map(function(x){return '<th style="text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)">'+x+'</th>'}).join("")+'</tr></thead><tbody>'+b+'</tbody></table></div>'}
+    function tr(c){return '<tr>'+c.map(function(x){return '<td style="padding:6px 4px;border-bottom:1px solid var(--line)">'+x+'</td>'}).join("")+'</tr>'}
+    e.innerHTML='<h2>이용 현황</h2><p class="muted">접속 수는 앱을 연 횟수, 방문자는 하루 기준 서로 다른 기기 수입니다. 월별 방문자는 일별 방문자의 합계입니다.</p>'+
+     '<h3>월별</h3>'+tb(["월","접속 수","방문자"],ms.map(function(m){return tr([m,mo[m][0],mo[m][1]])}).join("")+tr(["<b>전체</b>","<b>"+tv+"</b>","<b>"+tp+"</b>"]))+
+     '<h3>일별 (최근 30일)</h3>'+tb(["날짜","접속 수","방문자"],rows.slice(0,30).map(function(x){return tr([x.day,x.visits,x.visitors])}).join(""))})}
+function faqView(){
+  $("app").innerHTML=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 목록</button></div><div id="m"></div><div class="card"><div class="top"><h2>자주 묻는 질문</h2><button class="p" id="addq">+ 질문 추가</button></div><p class="muted">공개에 체크한 질문만 앱에 보입니다. 순서는 ↑ ↓ 버튼으로 바꿉니다. 답변은 쉬운 말로 적어 주세요.</p><div id="ql"><p class="muted">불러오는 중입니다.</p></div></div>';
+  $("out").onclick=logout;$("back").onclick=function(){ST.view="list";draw()};
+  var F=[];
+  function paint(){
+    $("ql").innerHTML=F.length?F.map(function(f,i){return '<div class="item" style="display:block"><label>질문 '+(i+1)+'</label><input data-i="'+i+'" data-k="question" value="'+esc(f.question)+'"><label>답변</label><textarea rows="4" data-i="'+i+'" data-k="answer">'+esc(f.answer)+'</textarea><div class="chk"><input type="checkbox" id="fp'+i+'" data-i="'+i+'" data-k="published"'+(f.published?' checked':'')+'><label for="fp'+i+'" style="margin:0;color:inherit">앱에 공개</label></div><div class="row"><button class="p" data-s="'+i+'">저장</button><button data-u="'+i+'">↑</button><button data-d="'+i+'">↓</button><button class="d" data-x="'+i+'">삭제</button></div></div>'}).join(""):'<p class="muted">등록된 질문이 없습니다.</p>';
+    Array.prototype.forEach.call(document.querySelectorAll("#ql [data-k]"),function(el){el.onchange=function(){var f=F[+el.getAttribute("data-i")],k=el.getAttribute("data-k");f[k]=k==="published"?el.checked:el.value}});
+    Array.prototype.forEach.call(document.querySelectorAll("#ql [data-s]"),function(b){b.onclick=function(){save(+b.getAttribute("data-s"))}});
+    Array.prototype.forEach.call(document.querySelectorAll("#ql [data-x]"),function(b){b.onclick=function(){del(+b.getAttribute("data-x"))}});
+    Array.prototype.forEach.call(document.querySelectorAll("#ql [data-u]"),function(b){b.onclick=function(){mv(+b.getAttribute("data-u"),-1)}});
+    Array.prototype.forEach.call(document.querySelectorAll("#ql [data-d]"),function(b){b.onclick=function(){mv(+b.getAttribute("data-d"),1)}})}
+  function save(i){var f=F[i];if(!f.question.trim()||!f.answer.trim())return setMsg("질문과 답변을 모두 입력해 주세요.");
+    var row={question:f.question.trim(),answer:f.answer.trim(),published:!!f.published,sort:i+1,updated_at:new Date().toISOString()};
+    var q=f.id?sb.from("faqs").update(row).eq("id",f.id):sb.from("faqs").insert(row).select().single();
+    q.then(function(r){if(r.error)return setMsg(errT(r.error));if(!f.id&&r.data)f.id=r.data.id;setMsg("저장했습니다.",true)})}
+  function del(i){var f=F[i];if(!confirm("이 질문을 삭제할까요?"))return;
+    if(!f.id){F.splice(i,1);return paint()}
+    sb.from("faqs").delete().eq("id",f.id).then(function(r){if(r.error)return setMsg(errT(r.error));F.splice(i,1);paint();setMsg("삭제했습니다.",true)})}
+  function mv(i,d){var j=i+d;if(j<0||j>=F.length)return;var t=F[i];F[i]=F[j];F[j]=t;
+    Promise.all(F.map(function(f,k){return f.id?sb.from("faqs").update({sort:k+1}).eq("id",f.id):null}).filter(Boolean)).then(function(){paint()})}
+  $("addq").onclick=function(){F.push({question:"",answer:"",published:false});paint()};
+  sb.from("faqs").select("id,question,answer,sort,published").order("sort").order("id").then(function(r){if(r.error)return setMsg(errT(r.error));F=r.data||[];paint()})}
+var NCATS=["공지","안전뉴스","카드뉴스","법령"];
+function nUrl(p){return SB_URL+"/storage/v1/object/public/news/"+p}
+function scopeName(cid){if(cid==null)return "전체";var c=ST.complexes.filter(function(x){return x.id===cid})[0];return c?c.name:"아파트"}
+function newsListView(){
+  $("app").innerHTML=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 목록</button></div><div id="m">'+msg(ST.msg,true)+'</div><div class="card"><div class="top"><h2>소식·공지</h2><button class="p" id="addn">+ 새 글</button></div><p class="muted">'+(ME.role==="super"?'전체 공지와 아파트별 공지를 작성합니다.':'관할 아파트의 공지를 작성합니다.')+' 공개로 체크한 글만 앱에 보입니다.</p><div id="nl"><p class="muted">불러오는 중입니다.</p></div></div>';
+  $("out").onclick=logout;$("back").onclick=function(){ST.view="list";ST.msg=null;draw()};
+  $("addn").onclick=function(){ST.nid=null;ST.view="newse";draw()};
+  sb.from("news").select("id,category,title,body,link_url,images,eff_date,complex_id,pinned,published,created_at").order("created_at",{ascending:false}).then(function(r){
+    if(r.error)return $("nl").innerHTML='<p class="muted">불러오지 못했습니다.</p>';
+    ST.news=r.data||[];
+    $("nl").innerHTML=ST.news.length?ST.news.map(function(n){return '<div class="item"><div><b>'+esc(n.title)+'</b> <span class="badge'+(n.published?' on':'')+'">'+(n.published?'공개 중':'비공개')+'</span><div class="muted">'+esc(n.category)+' · '+esc(scopeName(n.complex_id))+' · '+esc((n.created_at||"").slice(0,10))+(n.pinned?' · 상단 고정':'')+'</div></div><button data-n="'+n.id+'">열기</button></div>'}).join(""):'<p class="muted">등록된 글이 없습니다.</p>';
+    Array.prototype.forEach.call(document.querySelectorAll("#nl [data-n]"),function(b){b.onclick=function(){ST.nid=+b.getAttribute("data-n");ST.view="newse";draw()}})})}
+function newsEditView(){
+  var n=(ST.news||[]).filter(function(x){return x.id===ST.nid})[0]||{category:"공지",title:"",body:"",link_url:"",images:[],eff_date:"",complex_id:(ME.role==="super"||!ST.complexes.length)?null:ST.complexes[0].id,pinned:false,published:false};
+  var IM=(Array.isArray(n.images)?n.images:[]).slice();
+  var scope=(ME.role==="super"?'<option value="">전체 (모든 이용자)</option>':'')+ST.complexes.map(function(c){return '<option value="'+c.id+'"'+(c.id===n.complex_id?' selected':'')+'>'+esc(c.name)+' 아파트만</option>'}).join("");
+  $("app").innerHTML=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 목록</button></div><div id="m"></div><div class="card"><h2>'+(n.id?'글 수정':'새 글')+'</h2><div class="grid">'+
+   '<div><label for="nc">분류</label><select id="nc">'+NCATS.map(function(c){return '<option'+(c===n.category?' selected':'')+'>'+c+'</option>'}).join("")+'</select></div>'+
+   '<div><label for="ns">보여줄 대상</label><select id="ns">'+scope+'</select></div>'+
+   '<div><label for="ne">시행일 (법령일 때)</label><input id="ne" type="date" value="'+esc(n.eff_date||"")+'"></div>'+
+   '<div><label for="nk">원문 링크 (선택)</label><input id="nk" value="'+esc(n.link_url||"")+'" placeholder="https://"></div></div>'+
+   '<label for="nt">제목</label><input id="nt" maxlength="200" value="'+esc(n.title)+'"><label for="nb">내용</label><textarea id="nb" rows="8" maxlength="4000">'+esc(n.body||"")+'</textarea>'+
+   '<h3>이미지 (카드뉴스 등)</h3><p class="muted">사진은 자동으로 줄여서 저장됩니다. 올린 순서대로 보입니다.</p><div id="nim"></div><input id="nf" type="file" accept="image/*" multiple style="margin-top:8px">'+
+   '<div class="chk"><input type="checkbox" id="np"'+(n.pinned?' checked':'')+'><label for="np" style="margin:0;color:inherit">상단 고정</label></div>'+
+   '<div class="chk"><input type="checkbox" id="nu"'+(n.published?' checked':'')+'><label for="nu" style="margin:0;color:inherit">앱에 공개</label></div>'+
+   '<div class="row"><button class="p" id="nsave">저장</button>'+(n.id?'<button class="d" id="ndel">삭제</button>':'')+'</div></div>';
+  $("out").onclick=logout;$("back").onclick=function(){ST.view="news";draw()};
+  function paintIm(){$("nim").innerHTML=IM.length?IM.map(function(p,i){return '<div class="item"><img src="'+esc(nUrl(p))+'" alt="" style="width:96px;height:60px;object-fit:cover;border-radius:6px"><div class="muted">이미지 '+(i+1)+'</div><button data-ix="'+i+'">빼기</button></div>'}).join(""):'<p class="muted">이미지가 없습니다.</p>';
+    Array.prototype.forEach.call(document.querySelectorAll("#nim [data-ix]"),function(b){b.onclick=function(){IM.splice(+b.getAttribute("data-ix"),1);paintIm()}})}
+  paintIm();
+  $("nf").onchange=function(){var fs=Array.prototype.slice.call(this.files);if(!fs.length)return;setMsg("이미지를 올리는 중입니다.");var inp=this;
+    fs.reduce(function(pr,f,k){return pr.then(function(){return shrink(f).then(function(blob){var path="n/"+Date.now()+"-"+k+".jpg";return sb.storage.from("news").upload(path,blob,{contentType:"image/jpeg"}).then(function(r){if(r.error)throw r.error;IM.push(path)})})})},Promise.resolve()).then(function(){paintIm();setMsg("이미지를 올렸습니다. 저장을 눌러야 글에 반영됩니다.",true);inp.value=""},function(e){paintIm();setMsg(errT(e))})};
+  $("nsave").onclick=function(){var t=v("nt");if(!t)return setMsg("제목을 입력해 주세요.");
+    var cid=nz(v("ns")),lk=nz(v("nk"));if(ME.role!=="super"&&!cid)return setMsg("대상 아파트를 선택해 주세요.");
+    if(lk&&!/^https?:\/\//.test(lk))return setMsg("원문 링크는 http:// 또는 https://로 시작해야 합니다.");
+    var row={category:v("nc"),title:t,body:nz(v("nb")),link_url:lk,images:IM,eff_date:nz(v("ne")),complex_id:cid?+cid:null,pinned:$("np").checked,published:$("nu").checked,updated_at:new Date().toISOString()};
+    var q=n.id?sb.from("news").update(row).eq("id",n.id):sb.from("news").insert(row);
+    q.then(function(r){if(r.error)return setMsg(errT(r.error));ST.view="news";draw("저장했습니다.")})};
+  if($("ndel"))$("ndel").onclick=function(){if(!confirm("이 글을 삭제할까요?"))return;
+    sb.from("news").delete().eq("id",n.id).then(function(r){if(r.error)return setMsg(errT(r.error));if(IM.length)sb.storage.from("news").remove(IM);ST.view="news";draw("삭제했습니다.")})}}
 function genCode(){var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",b=new Uint8Array(8);crypto.getRandomValues(b);var s="";for(var i=0;i<8;i++)s+=a[b[i]%a.length];return s.slice(0,4)+"-"+s.slice(4)}
 function complexView(){
   var c=ST.complexes.filter(function(x){return x.id===ST.cid})[0]||{info:{},published:false,fire_station:ME.role==="station"?ME.station:""};
@@ -87,32 +221,41 @@ function complexView(){
    '<div><label for="cm">소방안전관리자</label><input id="cm" value="'+esc(i.mgr)+'"></div></div>'+
    '<div class="chk"><input type="checkbox" id="cp"'+(c.published?' checked':'')+'><label for="cp" style="margin:0;color:inherit">주민에게 공개</label></div>'+
    '<div class="row"><button class="p" id="savec">저장</button>'+(c.id&&ME.role==="super"?'<button class="d" id="delc">단지 삭제</button>':'')+'</div></div>';
-  if(c.id)h+='<div class="card"><h2>입주민 전용 정보</h2><p class="muted">옥상 열쇠 보관 위치는 가입코드를 입력한 주민에게만 보입니다.</p><div class="grid"><div><label for="jc">단지 가입코드</label><input id="jc" autocomplete="off"></div><div><label for="kl">열쇠 보관 위치</label><input id="kl"></div></div><div class="row"><button id="gen">코드 새로 만들기</button><button class="p" id="sevs">저장</button></div></div><div class="card"><div class="top"><h2>동 목록</h2><button class="p" id="addb">+ 동 추가</button></div><div id="bl"><p class="muted">불러오는 중입니다.</p></div></div>';
+  if(c.id)h+='<div class="card"><h2>입주민 전용 정보</h2><p class="muted">옥상 열쇠 보관 위치는 가입코드를 입력한 주민에게만 보입니다.</p><div class="grid"><div><label for="jc">단지 가입코드</label><input id="jc" autocomplete="off"></div><div><label for="kl">열쇠 보관 위치</label><input id="kl"></div></div><div class="row"><button id="gen">코드 새로 만들기</button><button class="p" id="sevs">저장</button></div></div><div class="card"><div class="top"><h2>아파트 안전정보</h2><button class="p" id="addb">안전정보 입력·수정</button></div><div id="bl"><p class="muted">불러오는 중입니다.</p></div></div>';
+  if(c.id&&ME.role!=="manager")h+='<div class="card"><h2>아파트 관리자 가입코드</h2><p class="muted">관리사무소 담당자가 가입할 때 쓰는 1회용 코드입니다. 담당자에게 전달해 주세요. 사용하면 무효가 되고, 가입 신청은 소방서 승인 후에 유효합니다.</p><div class="row"><select id="md"><option value="7">유효 7일</option><option value="30" selected>유효 30일</option><option value="90">유효 90일</option></select><button class="p" id="mgen">코드 발급</button></div><div id="mout"></div></div>';
   $("app").innerHTML=h;$("out").onclick=logout;$("back").onclick=function(){ST.view="list";draw()};
+  if(ME.role==="manager"){["cn","cr","ca","cs","cp"].forEach(function(k){if($(k))$(k).disabled=true})}
+  if(c.id&&ME.role!=="manager"){
+    var paintCodes=function(first){sb.from("manager_codes").select("code,expires_at,used_at").eq("complex_id",c.id).order("created_at",{ascending:false}).then(function(r){var l=(r.data||[]).filter(function(x){return !x.used_at&&new Date(x.expires_at)>new Date()});$("mout").innerHTML=(first?'<div class="msg ok">새 코드: <b style="font-size:18px;letter-spacing:1px">'+esc(first)+'</b></div>':'')+(l.length?'<h3>사용 대기 중인 코드</h3>'+l.map(function(x){return '<div class="item"><b>'+esc(x.code)+'</b><span class="muted">'+esc(String(x.expires_at).slice(0,10))+'까지</span></div>'}).join(""):'<p class="muted">사용 대기 중인 코드가 없습니다.</p>')})};
+    paintCodes();
+    $("mgen").onclick=function(){sb.rpc("issue_manager_code",{p_complex:c.id,p_days:+$("md").value}).then(function(x){if(x.error)return setMsg(errT(x.error));paintCodes(x.data&&x.data.code)})}}
   $("savec").onclick=function(){saveComplex(c)};
-  if($("delc"))$("delc").onclick=function(){if(confirm("이 단지와 모든 동 정보를 삭제할까요? 되돌릴 수 없습니다.")){sb.from("complexes").delete().eq("id",c.id).then(function(r){if(r.error)return draw(errT(r.error));ST.view="list";load()})}};
+  if($("delc"))$("delc").onclick=function(){if(confirm("이 아파트와 모든 안전정보를 삭제할까요? 되돌릴 수 없습니다.")){sb.from("complexes").delete().eq("id",c.id).then(function(r){if(r.error)return draw(errT(r.error));ST.view="list";load()})}};
   if(c.id){
     sb.from("complex_secrets").select("join_code,key_location").eq("complex_id",c.id).maybeSingle().then(function(r){if(r.data){$("jc").value=r.data.join_code||"";$("kl").value=r.data.key_location||""}});
     $("gen").onclick=function(){$("jc").value=genCode()};
-    $("sevs").onclick=function(){var code=v("jc").toUpperCase();if(!code)return setMsg("가입코드를 입력하거나 새로 만들어 주세요.");
+    if(ME.role==="manager"){var jw=$("jc").parentNode;jw.style.display="none";$("gen").style.display="none"}
+    $("sevs").onclick=function(){var code=v("jc").toUpperCase();if(ME.role==="manager"){if(!code)return setMsg("소방서에서 입주민 가입코드를 먼저 만들어야 합니다.");return sb.from("complex_secrets").update({key_location:nz(v("kl"))}).eq("complex_id",c.id).then(function(r){setMsg(r.error?errT(r.error):"입주민 전용 정보를 저장했습니다.",!r.error)})}
+      if(!code)return setMsg("가입코드를 입력하거나 새로 만들어 주세요.");
       sb.from("complex_secrets").upsert({complex_id:c.id,join_code:code,key_location:nz(v("kl"))}).then(function(r){setMsg(r.error?errT(r.error):"입주민 전용 정보를 저장했습니다.",!r.error)})};
     sb.from("buildings").select("id,name,info").eq("complex_id",c.id).order("name").then(function(r){
       ST.buildings=r.data||[];var b=$("bl");if(!b)return;
-      b.innerHTML=ST.buildings.length?ST.buildings.map(function(x){var i=x.info||{};return '<div class="item"><div><b>'+esc(x.name)+'</b> <span class="badge'+(i.roof||i.floors?' on':'')+'">'+(i.roof||i.floors?'입력됨':'미입력')+'</span><div class="muted">확인일 '+esc(i.updated||"-")+'</div></div><button data-b="'+x.id+'">열기</button></div>'}).join(""):'<p class="muted">등록된 동이 없습니다.</p>';
+      b.innerHTML=ST.buildings.length?ST.buildings.slice(0,1).map(function(x){var i=x.info||{};return '<div class="item"><div><b>안전정보</b> <span class="badge'+(i.roof||i.floors?' on':'')+'">'+(i.roof||i.floors?'입력됨':'미입력')+'</span><div class="muted">확인일 '+esc(i.updated||"-")+'</div></div><button data-b="'+x.id+'">열기</button></div>'}).join(""):'<p class="muted">아직 입력 전입니다.</p>';
       Array.prototype.forEach.call(b.querySelectorAll("[data-b]"),function(k){k.onclick=function(){ST.bid=+k.getAttribute("data-b");ST.view="dong";draw()}})});
-    $("addb").onclick=function(){ST.bid=null;ST.view="dong";draw()}}}
+    $("addb").onclick=function(){ST.bid=(ST.buildings&&ST.buildings[0]?ST.buildings[0].id:null);ST.view="dong";draw()}}}
 function saveComplex(c){
   var name=v("cn");if(!name)return setMsg("아파트 이름을 입력해 주세요.");
   var info=Object.assign({},c.info||{},{built:v("cb"),office:v("co"),truck:v("ct"),mgr:v("cm")});
   var row={name:name,region_id:+v("cr"),address:nz(v("ca")),fire_station:nz(v("cs")),info:info,published:$("cp").checked,updated_at:new Date().toISOString()};
+  if(ME.role==="manager")row={info:info,updated_at:row.updated_at};
   var q=c.id?sb.from("complexes").update(row).eq("id",c.id).select().single():sb.from("complexes").insert(row).select().single();
   q.then(function(r){if(r.error)return setMsg(r.error.code==="23505"?"같은 이름의 단지가 이미 있습니다.":errT(r.error));
-    ST.cid=r.data.id;ST.msgok=true;Promise.all([sb.from("complexes").select("id,region_id,name,address,fire_station,info,published").order("name")]).then(function(x){ST.complexes=x[0].data.filter(function(c){return ME.role==="super"||c.fire_station===ME.station});ST.view="complex";draw("저장했습니다.")})})}
+    ST.cid=r.data.id;ST.msgok=true;Promise.all([sb.from("complexes").select("id,region_id,name,address,fire_station,info,published").order("name")]).then(function(x){ST.complexes=x[0].data.filter(scopeOk);ST.view="complex";draw("저장했습니다.")})})}
 var PK=[["door","옥상 출입문 사진"],["floor","경량칸막이·대피공간 사용법 사진"],["fire","소방시설 위치 사진"]];
 function pubUrl(p){return SB_URL+"/storage/v1/object/public/photos/"+p}
 function shrink(file){return new Promise(function(ok,no){var u=URL.createObjectURL(file),im=new Image();im.onload=function(){var m=1280,w=im.width,h=im.height,k=Math.min(1,m/Math.max(w,h));var c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(function(b){b?ok(b):no(new Error("사진을 변환하지 못했습니다."))},"image/jpeg",0.82)};im.onerror=function(){no(new Error("사진을 읽지 못했습니다."))};im.src=u})}
 function photoCard(b){
-  if(!b.id)return '<div class="card"><h2>사진</h2><p class="muted">동을 먼저 저장하면 사진을 올릴 수 있습니다.</p></div>';
+  if(!b.id)return '<div class="card"><h2>사진</h2><p class="muted">안전정보를 먼저 저장하면 사진을 올릴 수 있습니다.</p></div>';
   var ph=(b.info&&b.info.photos)||{};
   return '<div class="card"><h2>사진</h2><p class="muted">휴대폰에서는 카메라로 바로 찍어 올릴 수 있습니다. 사진은 자동으로 줄여서 저장됩니다. 올리면 화면이 새로 고쳐지니, 입력한 내용은 먼저 저장해 주세요.</p>'+PK.map(function(k){var p=ph[k[0]];return '<h3>'+k[1]+'</h3>'+(p?'<img src="'+esc(pubUrl(p))+'" alt="" style="max-width:100%;border-radius:8px;border:1px solid var(--line)">':'<p class="muted">등록된 사진이 없습니다.</p>')+'<div class="row" style="margin-top:6px"><input type="file" accept="image/*" data-pk="'+k[0]+'" style="flex:1">'+(p?'<button class="d" data-pd="'+k[0]+'">사진 삭제</button>':'')+'</div>'}).join("")+'</div>'}
 function savePhotos(b,ph){var info=Object.assign({},b.info||{},{photos:ph});return sb.from("buildings").update({info:info,updated_at:new Date().toISOString()}).eq("id",b.id).then(function(r){if(r.error)throw r.error;b.info=info})}
@@ -125,15 +268,16 @@ function dongView(){
   var i=b.info||{},e=i.extra||{},fl=(i.floors&&i.floors.length)?i.floors:[["","확인 필요",""]];
   ST.rows=fl.map(function(r){return r.slice()});
   function fld(id,l,val,ph){return '<div><label for="'+id+'">'+l+'</label><input id="'+id+'" value="'+esc(val)+'"'+(ph?' placeholder="'+ph+'"':'')+'></div>'}
-  var h=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 단지로</button></div><div id="m">'+msg(ST.msg)+'</div><div class="card"><h2>'+(b.id?esc(b.name)+' 정보':'동 추가')+'</h2><div class="grid">'+
-   fld("dn","동 이름",b.name,"예: 101동")+
+  var h=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 아파트로</button></div><div id="m">'+msg(ST.msg)+'</div><div class="card"><h2>아파트 안전정보</h2><div class="grid">'+
+   '<input id="dn" type="hidden" value="'+esc(b.name||"단지 전체")+'">'+
    '<div><label for="dr">지붕 형태</label><select id="dr">'+["","평지붕","박공지붕","경사지붕","확인 필요"].map(function(o){return '<option'+(o===(i.roof||"")?' selected':'')+'>'+o+'</option>'}).join("")+'</select></div>'+
    fld("df","옥상 대피공간",i.refuge,"예: 옥상 중앙에 있음 / 없음")+fld("dd","옥상 출입문",i.door,"예: 설치됨 · 15층 계단 끝")+
    '<div><label for="do">출입문 개방 방식</label><select id="do">'+[["","미등록"],["auto","자동으로 열림"],["none","평소 잠김"],["unknown","확인 필요"]].map(function(o){return '<option value="'+o[0]+'"'+(o[0]===(i.opener||"")?' selected':'')+'>'+o[1]+'</option>'}).join("")+'</select></div>'+
    fld("dm","개방 방식 설명",i.openerNote)+fld("dx","장애요인",i.obstacle,"예: 없음 / 계단 끝에 적치물")+fld("du","정보 확인일",i.updated||today())+'</div>'.replace('','')+
-   '<h3>층 구간별 세대 대피시설</h3><div id="rows"></div><button id="addrow" style="margin-top:8px">구간 추가</button>'+
+   '<h3>층 구간별 세대 대피시설</h3><p class="muted">층마다 다르면 구간을 나눠 입력하세요. 예: 1~4층 경량칸막이, 5층 이상 대피공간. 앱에서 일구가 문장으로 풀어 줍니다.</p><div id="rows"></div><button id="addrow" style="margin-top:8px">구간 추가</button>'+
+   '<h3>동·층별로 다른 점 (일구가 알려줘요)</h3><p class="muted">동마다, 층마다 다른 내용이 있으면 쉬운 말로 적어 주세요. 앱에서 일구 말풍선으로 보입니다. 예: 101동은 옥상 문이 자동으로 열려요. 102동은 평소 잠겨 있어요.</p><textarea id="dnote" rows="4" maxlength="600">'+esc(i.note)+'</textarea>'+
    '<h3>소방시설 위치</h3><div class="grid">'+fld("ey","옥내소화전",e.hyd)+fld("es","스프링클러",e.sprk)+fld("ep","화재 수신반",e.panel)+fld("et","계단",e.stairs)+fld("eh","복도 형태",e.hall)+fld("el","승강기",e.elev)+'</div>'+
-   '<div class="row"><button class="p" id="saved">저장</button>'+(b.id?'<button class="d" id="delb">동 삭제</button>':'')+'</div></div>';
+   '<div class="row"><button class="p" id="saved">저장</button>'+''+'</div></div>';
   h+=photoCard(b);
   $("app").innerHTML=h;$("out").onclick=logout;
   $("du").type="date";bindPhotos(b);
@@ -143,12 +287,12 @@ function dongView(){
     Array.prototype.forEach.call(document.querySelectorAll("#rows [data-x]"),function(el){el.onclick=function(){ST.rows.splice(+el.getAttribute("data-x"),1);rows()}})}
   rows();$("addrow").onclick=function(){ST.rows.push(["","확인 필요",""]);rows()};
   $("saved").onclick=function(){
-    var n=v("dn");if(!n)return setMsg("동 이름을 입력해 주세요.");
+    var n=v("dn")||"단지 전체";
     var fls=ST.rows.filter(function(r){return r[0]});
-    var info={roof:nz(v("dr")),refuge:nz(v("df")),door:nz(v("dd")),opener:nz(v("do")),openerNote:nz(v("dm")),obstacle:nz(v("dx")),updated:nz(v("du")),floors:fls.length?fls:null,photos:(b.info&&b.info.photos)||{},extra:{hyd:nz(v("ey")),sprk:nz(v("es")),panel:nz(v("ep")),stairs:nz(v("et")),hall:nz(v("eh")),elev:nz(v("el"))}};
+    var info={roof:nz(v("dr")),refuge:nz(v("df")),door:nz(v("dd")),opener:nz(v("do")),openerNote:nz(v("dm")),obstacle:nz(v("dx")),updated:nz(v("du")),floors:fls.length?fls:null,photos:(b.info&&b.info.photos)||{},note:nz(v("dnote")),extra:{hyd:nz(v("ey")),sprk:nz(v("es")),panel:nz(v("ep")),stairs:nz(v("et")),hall:nz(v("eh")),elev:nz(v("el"))}};
     var row={complex_id:ST.cid,name:n,info:info,updated_at:new Date().toISOString()};
     var q=b.id?sb.from("buildings").update(row).eq("id",b.id):sb.from("buildings").insert(row);
-    q.then(function(r){if(r.error)return setMsg(errT(r.error));ST.view="complex";ST.msgok=true;draw("동 정보를 저장했습니다.")})};
+    q.then(function(r){if(r.error)return setMsg(errT(r.error));ST.view="complex";ST.msgok=true;draw("안전정보를 저장했습니다.")})};
   if($("delb"))$("delb").onclick=function(){if(confirm("이 동 정보를 삭제할까요?"))sb.from("buildings").delete().eq("id",b.id).then(function(r){if(r.error)return setMsg(errT(r.error));ST.view="complex";draw("삭제했습니다.")})}}
 if(window.supabase){sb=window.supabase.createClient(SB_URL,SB_KEY);start()}else $("app").innerHTML='<h1>관리자</h1><div class="card"><p>필요한 구성 요소를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.</p></div>';
 </script></body></html>
