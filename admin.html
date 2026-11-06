@@ -173,7 +173,7 @@ function newsListView(){
   $("app").innerHTML=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 목록</button></div><div id="m">'+msg(ST.msg,true)+'</div><div class="card"><div class="top"><h2>소식·공지</h2><button class="p" id="addn">+ 새 글</button></div><p class="muted">'+(ME.role==="super"?'전체 공지와 아파트별 공지를 작성합니다.':'관할 아파트의 공지를 작성합니다.')+' 공개로 체크한 글만 앱에 보입니다.</p><div id="nl"><p class="muted">불러오는 중입니다.</p></div></div>';
   $("out").onclick=logout;$("back").onclick=function(){ST.view="list";ST.msg=null;draw()};
   $("addn").onclick=function(){ST.nid=null;ST.view="newse";draw()};
-  sb.from("news").select("id,category,title,body,link_url,images,eff_date,complex_id,pinned,published,created_at").order("created_at",{ascending:false}).then(function(r){
+  sb.from("news").select("id,category,title,body,link_url,images,eff_date,complex_id,pinned,published,notified_at,created_at").order("created_at",{ascending:false}).then(function(r){
     if(r.error)return $("nl").innerHTML='<p class="muted">불러오지 못했습니다.</p>';
     ST.news=r.data||[];
     $("nl").innerHTML=ST.news.length?ST.news.map(function(n){return '<div class="item"><div><b>'+esc(n.title)+'</b> <span class="badge'+(n.published?' on':'')+'">'+(n.published?'공개 중':'비공개')+'</span><div class="muted">'+esc(n.category)+' · '+esc(scopeName(n.complex_id))+' · '+esc((n.created_at||"").slice(0,10))+(n.pinned?' · 상단 고정':'')+'</div></div><button data-n="'+n.id+'">열기</button></div>'}).join(""):'<p class="muted">등록된 글이 없습니다.</p>';
@@ -191,6 +191,7 @@ function newsEditView(){
    '<h3>이미지 (카드뉴스 등)</h3><p class="muted">사진은 자동으로 줄여서 저장됩니다. 올린 순서대로 보입니다.</p><div id="nim"></div><input id="nf" type="file" accept="image/*" multiple style="margin-top:8px">'+
    '<div class="chk"><input type="checkbox" id="np"'+(n.pinned?' checked':'')+'><label for="np" style="margin:0;color:inherit">상단 고정</label></div>'+
    '<div class="chk"><input type="checkbox" id="nu"'+(n.published?' checked':'')+'><label for="nu" style="margin:0;color:inherit">앱에 공개</label></div>'+
+   (ME.role==="manager"?'':n.notified_at?'<p class="muted">알림 발송됨 ('+esc(String(n.notified_at).slice(0,16).replace("T"," "))+') — 같은 글은 다시 보내지 않습니다.</p>':'<div class="chk"><input type="checkbox" id="nn"><label for="nn" style="margin:0;color:inherit">저장하면서 알림도 보내기 (공개된 글만, 한 번만 발송)</label></div>')+
    '<div class="row"><button class="p" id="nsave">저장</button>'+(n.id?'<button class="d" id="ndel">삭제</button>':'')+'</div></div>';
   $("out").onclick=logout;$("back").onclick=function(){ST.view="news";draw()};
   function paintIm(){$("nim").innerHTML=IM.length?IM.map(function(p,i){return '<div class="item"><img src="'+esc(nUrl(p))+'" alt="" style="width:96px;height:60px;object-fit:cover;border-radius:6px"><div class="muted">이미지 '+(i+1)+'</div><button data-ix="'+i+'">빼기</button></div>'}).join(""):'<p class="muted">이미지가 없습니다.</p>';
@@ -202,8 +203,19 @@ function newsEditView(){
     var cid=nz(v("ns")),lk=nz(v("nk"));if(ME.role!=="super"&&!cid)return setMsg("대상 아파트를 선택해 주세요.");
     if(lk&&!/^https?:\/\//.test(lk))return setMsg("원문 링크는 http:// 또는 https://로 시작해야 합니다.");
     var row={category:v("nc"),title:t,body:nz(v("nb")),link_url:lk,images:IM,eff_date:nz(v("ne")),complex_id:cid?+cid:null,pinned:$("np").checked,published:$("nu").checked,updated_at:new Date().toISOString()};
-    var q=n.id?sb.from("news").update(row).eq("id",n.id):sb.from("news").insert(row);
-    q.then(function(r){if(r.error)return setMsg(errT(r.error));ST.view="news";draw("저장했습니다.")})};
+    var wantPush=!!($("nn")&&$("nn").checked);
+    if(wantPush&&!row.published)return setMsg("알림은 ‘앱에 공개’한 글만 보낼 수 있습니다.");
+    var q=n.id?sb.from("news").update(row).eq("id",n.id).select("id").single():sb.from("news").insert(row).select("id").single();
+    q.then(function(r){if(r.error)return setMsg(errT(r.error));
+      var id=(r.data&&r.data.id)||n.id;
+      if(!wantPush||!id){ST.view="news";return draw("저장했습니다.")}
+      setMsg("저장했습니다. 알림을 보내는 중입니다.");
+      return sb.auth.getSession().then(function(x){var tk=x&&x.data&&x.data.session&&x.data.session.access_token;
+        return fetch(SB_URL+"/functions/v1/send-push",{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+tk,"Content-Type":"application/json"},body:JSON.stringify({news_id:id})}).then(function(res){return res.json().then(function(j){return {ok:res.ok,j:j}})})}).then(function(o){
+        ST.view="news";
+        if(o.ok)draw("저장했습니다. "+o.j.sent+"명에게 알림을 보냈습니다."+(o.j.failed?" (실패 "+o.j.failed+"건)":""));
+        else draw("저장했습니다. 다만 알림은 보내지 못했습니다: "+((o.j&&o.j.error)||"알 수 없는 오류"))
+      }).catch(function(){ST.view="news";draw("저장했습니다. 다만 알림은 보내지 못했습니다. 잠시 후 다시 시도해 주세요.")})})};
   if($("ndel"))$("ndel").onclick=function(){if(!confirm("이 글을 삭제할까요?"))return;
     sb.from("news").delete().eq("id",n.id).then(function(r){if(r.error)return setMsg(errT(r.error));if(IM.length)sb.storage.from("news").remove(IM);ST.view="news";draw("삭제했습니다.")})}}
 function genCode(){var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",b=new Uint8Array(8);crypto.getRandomValues(b);var s="";for(var i=0;i<8;i++)s+=a[b[i]%a.length];return s.slice(0,4)+"-"+s.slice(4)}

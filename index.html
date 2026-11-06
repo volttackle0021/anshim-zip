@@ -215,6 +215,13 @@ body,button,select,input,summary,td,th,dd,dt,li,p,h1,h2,h3,h4,small{word-break:k
 .nitem summary{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;cursor:pointer;font-weight:700}.nitem summary small{margin-left:auto;font-weight:400;color:var(--muted)}
 .card.nitem{padding:0;border:0;background:none;box-shadow:none;margin:8px 0}
 .nimg{display:block;width:100%;height:auto;border-radius:8px;margin-top:10px;cursor:zoom-in}
+.pushc{margin:12px 0 0;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--brand);border-radius:12px}
+.pushc b{display:block;font-size:15px}.pushc p{margin:4px 0 0;font-size:14px;color:var(--muted)}.pushc small{display:block;margin-top:8px;font-size:12px;color:var(--muted)}
+.pushc .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.pushc .btn{min-height:44px}
+.pushc .wait{color:var(--brand);font-weight:700}
+.btn.pulse{position:relative;animation:pz 1.1s ease-in-out infinite}
+@keyframes pz{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(11,58,168,.55)}50%{transform:scale(1.05);box-shadow:0 0 0 10px rgba(11,58,168,0)}}
+@media (prefers-reduced-motion:reduce){.btn.pulse{animation:none;outline:3px solid var(--brand)}}
 </style>
 </head><body>
 <button id="splash" type="button" aria-label="우리동네 아파트 안심.ZIP 시작하기"><span class="sp"><img id="spm" alt="소방청 캐릭터 일구"><b class="spt">우리동네 아파트 안심<i>.ZIP</i></b><span class="sps">일구와 함께 확인하는 우리 아파트 화재안전</span><span class="spk">화면을 누르면 시작해요</span></span></button>
@@ -250,6 +257,41 @@ function band(t,sub,m){if(m)return '<header class="hero sec withm"><div><h2>'+t+
 var INS={ev:null,off:false};
 function insHide(){try{return localStorage.getItem("insOff")==="1"}catch(e){return false}}
 function insStandalone(){return (window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true}
+var PUSH={sub:null,busy:false,wait:false,err:"",cid:null,pulse:false};
+function pushOk(){return "serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window}
+function pushIos(){return /iPhone|iPad|iPod/i.test(navigator.userAgent||"")}
+function b64b(u){var p="=".repeat((4-u.length%4)%4),b=(u+p).replace(/-/g,"+").replace(/_/g,"/"),r=atob(b),o=new Uint8Array(r.length);for(var i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o}
+function ab64(buf){var a=new Uint8Array(buf),t="";for(var i=0;i<a.length;i++)t+=String.fromCharCode(a[i]);return btoa(t)}
+function rpc(n,a){return fetch(SB_URL+"/rest/v1/rpc/"+n,{method:"POST",headers:sbH(),body:JSON.stringify(a||{})}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.text().then(function(t){try{return JSON.parse(t)}catch(e){return null}})})}
+function pushKey(){return rpc("push_public_key").then(function(k){if(k)return k;
+  return fetch(SB_URL+"/functions/v1/send-push",{method:"POST",headers:sbH(),body:JSON.stringify({action:"init"})}).then(function(r){return r.json()}).then(function(j){return j.public_key})})}
+function pushCid(){return S.apt?(IDS[ck()]||null):null}
+function pushSave(sub){var j=sub.toJSON(),c=pushCid();PUSH.cid=c;return rpc("save_push_subscription",{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth,p_complex:c})}
+function pushInit(){if(!pushOk())return;
+  navigator.serviceWorker.register("sw.js").then(function(){return navigator.serviceWorker.ready}).then(function(reg){return reg.pushManager.getSubscription()}).then(function(sb){
+    PUSH.sub=!!sb&&Notification.permission==="granted";if(PUSH.sub)pushSave(sb).catch(function(){});if(S.view==="home")render()}).catch(function(){});
+  navigator.serviceWorker.addEventListener("message",function(e){var m=e.data||{};if(m.type==="open"){var x=/[?&]news=(\d+)/.exec(m.url||"");if(x)newsOpen(+x[1])}})}
+function newsOpen(id){S.nopen=id;S.nf="전체";go("news")}
+function pushOn(){PUSH.busy=true;PUSH.wait=true;PUSH.err="";render();
+  var reg;
+  Notification.requestPermission().then(function(p){PUSH.wait=false;if(p!=="granted")throw new Error(p==="denied"?"denied":"dismissed");
+    return navigator.serviceWorker.register("sw.js").then(function(){return navigator.serviceWorker.ready})}).then(function(r){reg=r;return pushKey()}).then(function(k){
+    if(!k)throw new Error("nokey");return reg.pushManager.getSubscription().then(function(old){return old||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64b(k)})})}).then(function(sb){
+    return pushSave(sb).then(function(){PUSH.sub=true;PUSH.pulse=false})}).catch(function(e){PUSH.wait=false;PUSH.sub=false;
+    PUSH.err=e&&e.message==="denied"?"denied":e&&e.message==="dismissed"?"허용을 누르지 않으셨어요. 다시 눌러 주세요.":"알림을 켜지 못했습니다. 잠시 후 다시 시도해 주세요."}).then(function(){PUSH.busy=false;render()})}
+function pushOff(){PUSH.busy=true;render();
+  navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription()}).then(function(sb){if(!sb)return;var ep=sb.endpoint;return sb.unsubscribe().then(function(){return rpc("remove_push_subscription",{p_endpoint:ep})})}).catch(function(){}).then(function(){PUSH.sub=false;PUSH.busy=false;render()})}
+function pushBox(){
+  if(!pushOk())return "";
+  if(pushIos()&&!insStandalone())return "";
+  var perm=Notification.permission;
+  if(perm==="denied"||PUSH.err==="denied")return '<section class="pushc" aria-label="공지 알림"><b>공지 알림이 꺼져 있어요</b><p>알림을 받으려면 휴대폰 설정(또는 브라우저 주소창 옆 자물쇠)에서 이 앱의 알림을 ‘허용’으로 바꿔 주세요.</p></section>';
+  if(PUSH.sub)return '<section class="pushc" aria-label="공지 알림"><b>공지 알림을 받고 있어요</b><p>새 안전 소식이 올라오면 휴대폰으로 알려 드려요.</p><div class="acts"><button class="btn ghost" id="pushoff"'+(PUSH.busy?' disabled':'')+'>알림 끄기</button></div></section>';
+  var w=PUSH.wait?'<p class="wait" role="status">화면에 뜬 안내창에서 ‘허용’을 눌러 주세요.</p>':(PUSH.err?'<p role="alert">'+esc(PUSH.err)+'</p>':'');
+  return '<section class="pushc" aria-label="공지 알림"><b>새 공지를 알림으로 받아보세요</b><p>안전뉴스·법령 개정 같은 새 소식을 휴대폰 알림으로 알려 드려요.</p>'+w+'<div class="acts"><button class="btn primary pulse" id="pushon"'+(PUSH.busy?' disabled':'')+'>알림 허용하기</button></div><small>알림을 받는 기기 주소만 저장되며 언제든 끌 수 있어요. 긴급 재난 알림은 아닙니다.</small></section>'}
+function pushBind(){if($("pushon"))$("pushon").onclick=pushOn;if($("pushoff"))$("pushoff").onclick=pushOff;
+  if(PUSH.sub&&PUSH.cid!==pushCid()){PUSH.cid=pushCid();navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription()}).then(function(sb){if(sb)pushSave(sb)}).catch(function(){})}}
+(function(){var r0=render;render=function(){r0();pushBind()}})();
 function installBox(){
   if(INS.off||insHide()||insStandalone())return "";
   var ua=navigator.userAgent||"",ios=/iPhone|iPad|iPod/i.test(ua),mob=/Android|iPhone|iPad|iPod/i.test(ua),t="",b="";
@@ -257,14 +299,14 @@ function installBox(){
   else if(ios){t="사파리 아래의 공유(□↑) 버튼을 누르고 ‘홈 화면에 추가’를 선택하세요."}
   else if(mob){t="브라우저 메뉴(⋮)에서 ‘앱 설치’ 또는 ‘홈 화면에 추가’를 선택하세요."}
   else return "";
-  return '<section class="ins" aria-label="앱 설치 안내"><b>우리동네 아파트 안심.ZIP을 앱으로 쓰세요</b><p>'+t+'</p><div class="acts">'+b+'<button class="btn ghost" id="insx">닫기</button></div></section>'}
+  return '<section class="ins" aria-label="앱 설치 안내"><b>우리동네 아파트 안심.ZIP을 앱으로 쓰세요</b><p>'+t+'</p><p>설치한 뒤 앱을 열면 ‘알림 허용하기’ 버튼이 깜빡여요. 눌러서 새 공지 알림을 받아보세요.</p><div class="acts">'+b+'<button class="btn ghost" id="insx">닫기</button></div></section>'}
 window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();INS.ev=e;if(S.view==="home")render()});
-window.addEventListener("appinstalled",function(){INS.off=true;if(S.view==="home")render()});
+window.addEventListener("appinstalled",function(){INS.off=true;PUSH.pulse=true;if(S.view==="home")render()});
 function ph(p,t){return p?'<img class="pimg" src="'+esc(SB_URL+"/storage/v1/object/public/photos/"+p)+'" alt="'+esc(t)+'" loading="lazy">':""}
 function home(){
   var sgs=Object.keys(DATA),apts=S.sg?Object.keys(DATA[S.sg]):[];
   return (LOAD==="loading"?'<div class="sample" role="status">정보를 불러오는 중입니다.</div>':LOAD==="err"?'<div class="sample" role="status">정보를 불러오지 못했습니다. 잠시 후 다시 열어 주세요.</div>':(sgs.length?'':'<div class="sample" role="status">아직 등록된 아파트가 없습니다.</div>'))+
-  '<header class="hero home"><div><h1>우리동네 아파트 안심<span class="zip">.ZIP</span></h1><p class="lead">일구와 함께 확인하는 안전한 우리집 만들기</p></div><img class="mas" src="'+IL_FRONT+'" alt="소방청 캐릭터 일구"></header>'+installBox()+
+  '<header class="hero home"><div><h1>우리동네 아파트 안심<span class="zip">.ZIP</span></h1><p class="lead">일구와 함께 확인하는 안전한 우리집 만들기</p></div><img class="mas" src="'+IL_FRONT+'" alt="소방청 캐릭터 일구"></header>'+installBox()+pushBox()+
   '<section class="card" aria-labelledby="f"><h2 id="f">내가 사는 아파트 찾기</h2><div class="finder">'+
   '<select id="sg" aria-label="시·군·구">'+opts(sgs,"시·군·구",S.sg)+'</select>'+
   '<select id="apt" aria-label="아파트"'+(S.sg?'':' disabled')+'>'+opts(apts,"아파트",S.apt)+'</select>'+
@@ -403,7 +445,9 @@ function bind(){
     sbSecret(cid,code.toUpperCase()).then(function(t){if(t==null){m.textContent="코드가 맞지 않습니다. 관리사무소에서 받은 코드를 다시 확인해 주세요."}else{S.unlocked[ck()]=true;S.keytext[ck()]=t;render()}}).catch(function(){m.textContent="확인하지 못했습니다. 잠시 후 다시 시도해 주세요."})}}}
 function track(){try{if(sessionStorage.getItem("sv"))return;sessionStorage.setItem("sv","1");var d=new Date(),k=d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(),nv=localStorage.getItem("lv")!==k;localStorage.setItem("lv",k);fetch(SB_URL+"/rest/v1/rpc/track_visit",{method:"POST",headers:sbH(),body:JSON.stringify({new_visitor:nv})}).catch(function(){})}catch(e){}}
 track();
-loadData().then(render,function(){LOAD="err";render()});
+pushInit();
+function deep(){var m=/[?&]news=(\d+)/.exec(location.search);if(m){S.nopen=+m[1];S.nf="전체";S.view="news"}}
+loadData().then(function(){deep();render()},function(){LOAD="err";render()});
 render();
 (function(){var sp=document.getElementById("splash");function off(){sp.classList.add("off");setTimeout(function(){sp.hidden=true},600)}var pm=document.getElementById("spm");if(pm)pm.src=IL_FRONT;sp.onclick=off;setTimeout(off,2400)})();
 </script>
