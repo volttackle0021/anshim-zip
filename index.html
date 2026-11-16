@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0c2a66"><link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0c2a66"><link rel="manifest" href="manifest.webmanifest"><meta name="apple-mobile-web-app-title" content="우리동네 아파트 안심.ZIP">
 <link rel="apple-touch-icon" href="app-icon-180.png"><link rel="icon" href="app-icon-192.png">
 <title>우리동네 아파트 안심.ZIP</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
@@ -288,7 +288,7 @@ function pushBox(){
   if(perm==="denied"||PUSH.err==="denied")return '<section class="pushc" aria-label="공지 알림"><b>공지 알림이 꺼져 있어요</b><p>알림을 받으려면 휴대폰 설정(또는 브라우저 주소창 옆 자물쇠)에서 이 앱의 알림을 ‘허용’으로 바꿔 주세요.</p></section>';
   if(PUSH.sub)return '<section class="pushc" aria-label="공지 알림"><b>공지 알림을 받고 있어요</b><p>새 안전 소식이 올라오면 휴대폰으로 알려 드려요.</p><div class="acts"><button class="btn ghost" id="pushoff"'+(PUSH.busy?' disabled':'')+'>알림 끄기</button></div></section>';
   var w=PUSH.wait?'<p class="wait" role="status">화면에 뜬 안내창에서 ‘허용’을 눌러 주세요.</p>':(PUSH.err?'<p role="alert">'+esc(PUSH.err)+'</p>':'');
-  return '<section class="pushc" aria-label="공지 알림"><b>새 공지를 알림으로 받아보세요</b><p>안전뉴스·법령 개정 같은 새 소식을 휴대폰 알림으로 알려 드려요.</p>'+w+'<div class="acts"><button class="btn primary pulse" id="pushon"'+(PUSH.busy?' disabled':'')+'>알림 허용하기</button></div><small>알림을 받는 기기 주소만 저장되며 언제든 끌 수 있어요. 긴급 재난 알림은 아닙니다.</small></section>'}
+  return '<section class="pushc" aria-label="공지 알림"><b>새 공지를 알림으로 받아보세요</b><p>안전뉴스·법령 개정 같은 새 소식을 휴대폰 알림으로 알려 드려요.</p>'+w+'<div class="acts"><button class="btn primary pulse" id="pushon"'+(PUSH.busy?' disabled':'')+'>알림 허용하기</button></div><small>‘알림 허용하기’를 누르면 알림을 보내기 위한 기기 정보(식별 주소)가 저장됩니다. 언제든 끌 수 있고, 끄면 삭제돼요. 긴급 재난 알림은 아닙니다.</small></section>'}
 function pushBind(){if($("pushon"))$("pushon").onclick=pushOn;if($("pushoff"))$("pushoff").onclick=pushOff;
   if(PUSH.sub&&PUSH.cid!==pushCid()){PUSH.cid=pushCid();navigator.serviceWorker.ready.then(function(r){return r.pushManager.getSubscription()}).then(function(sb){if(sb)pushSave(sb)}).catch(function(){})}}
 (function(){var r0=render;render=function(){r0();pushBind()}})();

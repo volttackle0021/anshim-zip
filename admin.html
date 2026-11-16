@@ -108,6 +108,8 @@ function listView(){
   if(ME.role==="super")h+='<div class="card"><h2>시·군·구 추가</h2><div class="row" style="margin-top:0"><input id="nr" placeholder="예: 곡성군" style="flex:1"><button id="addr">추가</button></div><p class="muted">등록된 시·군·구: '+ST.regions.map(function(r){return esc(r.name)}).join(", ")+'</p></div>';
   if(ME.role==="super")h+='<div class="card"><div class="top"><h2>자주 묻는 질문</h2><button class="p" id="openfaq">질문·답변 관리</button></div><p class="muted">앱 홈 화면 맨 아래에 나오는 Q&A를 등록하고 고칩니다.</p></div>';
   if(ME.role!=="manager")h+='<div class="card"><div class="top"><h2>소식·공지</h2><button id="newsb">관리</button></div><p class="muted">안전뉴스, 카드뉴스, 법령 개정, 공지를 올립니다.</p></div>';
+  h+='<div class="card"><div class="top"><h2>단체 채팅</h2><button class="p" id="chatb">열기</button></div><p class="muted">같은 시·군·구 아파트 관리자와 소방서 담당자가 함께 쓰는 대화방입니다.</p></div>';
+  h+='<div class="card"><div class="top"><h2>내 계정</h2><button id="pwb">비밀번호 변경</button></div></div>';
   if(ME.role!=="manager")h+='<div class="card" id="appr"><h2>아파트 관리자 승인</h2><p class="muted">불러오는 중입니다.</p></div>';
   if(ME.role==="super")h+='<div class="card" id="stats"><h2>이용 현황</h2><p class="muted">불러오는 중입니다.</p></div>';
   $("app").innerHTML=h;$("out").onclick=logout;if($("newsb"))$("newsb").onclick=function(){ST.view="news";draw()};if(ME.role!=="manager")loadApprovals();if(ME.role==="super"){loadStats();$("openfaq").onclick=function(){ST.view="faq";draw()}}
@@ -218,6 +220,72 @@ function newsEditView(){
       }).catch(function(){ST.view="news";draw("저장했습니다. 다만 알림은 보내지 못했습니다. 잠시 후 다시 시도해 주세요.")})})};
   if($("ndel"))$("ndel").onclick=function(){if(!confirm("이 글을 삭제할까요?"))return;
     sb.from("news").delete().eq("id",n.id).then(function(r){if(r.error)return setMsg(errT(r.error));if(IM.length)sb.storage.from("news").remove(IM);ST.view="news";draw("삭제했습니다.")})}}
+var CH={rid:null,timer:null,uid:null,sig:"",urls:{},hash:false,busy:false};
+function chatRegions(){var ids={};ST.complexes.forEach(function(c){ids[c.region_id]=1});if(ME.role==="super")ST.regions.forEach(function(r){ids[r.id]=1});return ST.regions.filter(function(r){return ids[r.id]})}
+function chStop(){if(CH.timer){clearInterval(CH.timer);CH.timer=null}}
+function tFmt(t){var d=new Date(t);if(isNaN(d))return "";var p=function(n){return (n<10?"0":"")+n};return p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())}
+function chatView(){
+  chStop();var rs=chatRegions();
+  if(!rs.length){$("app").innerHTML=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 목록</button></div><div class="card"><p>참여할 수 있는 시·군·구가 없습니다.</p></div>';$("out").onclick=logout;$("back").onclick=function(){ST.view="list";draw()};return}
+  if(!CH.rid||!rs.some(function(r){return r.id===CH.rid}))CH.rid=rs[0].id;
+  var head=rs.length>1?'<select id="crg" aria-label="시·군·구" style="max-width:200px">'+rs.map(function(r){return '<option value="'+r.id+'"'+(r.id===CH.rid?' selected':'')+'>'+esc(r.name)+'</option>'}).join("")+'</select>':'<b>'+esc(rs[0].name)+' 단체 채팅</b>';
+  $("app").innerHTML=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 목록</button></div><div id="m"></div><div class="card"><div class="top"><h2>단체 채팅</h2><div>'+head+'</div></div>'+
+   '<p class="muted">같은 시·군·구의 아파트 관리자와 소방서 담당자가 함께 봅니다. 이름 대신 소속만 표시됩니다.</p><div class="row" style="margin:6px 0"><button id="cpush">휴대폰 알림 켜기</button></div>'+
+   '<div id="cl" style="max-height:52vh;overflow:auto;padding:4px 0" aria-live="polite"><p class="muted">불러오는 중입니다.</p></div>'+
+   '<label for="ct">메시지</label><textarea id="ct" rows="3" maxlength="2000" placeholder="내용을 입력하세요"></textarea>'+
+   '<div class="row"><input id="cf" type="file" accept="image/*"><button class="p" id="cs">보내기</button></div></div>';
+  $("out").onclick=logout;$("back").onclick=function(){ST.view="list";draw()};
+  if($("crg"))$("crg").onchange=function(){CH.rid=+this.value;CH.sig="";chLoad(true)};
+  $("cpush").onclick=chPush;$("cs").onclick=chSend;
+  CH.sig="";chLoad(true);CH.timer=setInterval(function(){chLoad(false)},8000)}
+function chLoad(force){
+  sb.auth.getSession().then(function(r){CH.uid=r.data&&r.data.session?r.data.session.user.id:null;
+    return sb.from("chat_messages").select("id,user_id,sender_label,body,image_path,created_at").eq("region_id",CH.rid).order("id",{ascending:false}).limit(200)}).then(function(r){
+    if(!$("cl"))return;if(r.error){$("cl").innerHTML='<p class="muted">불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p>';return}
+    var l=(r.data||[]).slice().reverse(),sig=l.length+":"+(l.length?l[l.length-1].id:0);
+    if(sig===CH.sig&&!force)return;CH.sig=sig;
+    var need=l.filter(function(m){return m.image_path&&!CH.urls[m.image_path]}).map(function(m){return m.image_path});
+    var p=need.length&&sb.storage.from("chat").createSignedUrls?sb.storage.from("chat").createSignedUrls(need,3600).then(function(x){(x.data||[]).forEach(function(o){if(o.signedUrl)CH.urls[o.path]=o.signedUrl})}).catch(function(){}):Promise.resolve();
+    p.then(function(){var box=$("cl");if(!box)return;var atEnd=box.scrollHeight-box.scrollTop-box.clientHeight<80||force;
+      box.innerHTML=l.length?l.map(function(m){var mine=m.user_id===CH.uid,can=mine||ME.role!=="manager";
+        return '<div style="display:flex;flex-direction:column;align-items:'+(mine?'flex-end':'flex-start')+';margin:8px 0"><div class="muted" style="font-size:12px">'+esc(m.sender_label)+' · '+tFmt(m.created_at)+'</div>'+
+        '<div style="max-width:88%;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:'+(mine?'var(--surface)':'transparent')+';white-space:pre-line;word-break:break-word">'+(m.body?esc(m.body):'')+
+        (m.image_path&&CH.urls[m.image_path]?'<img src="'+esc(CH.urls[m.image_path])+'" alt="첨부 사진" style="display:block;max-width:100%;border-radius:8px;margin-top:6px">':m.image_path?'<div class="muted">(사진)</div>':'')+'</div>'+
+        (can?'<button data-cd="'+m.id+'" style="margin-top:4px;font-size:12px">삭제</button>':'')+'</div>'}).join(""):'<p class="muted">아직 대화가 없습니다. 첫 메시지를 남겨 보세요.</p>';
+      if(atEnd)box.scrollTop=box.scrollHeight;
+      Array.prototype.forEach.call(box.querySelectorAll("[data-cd]"),function(b){b.onclick=function(){if(!confirm("이 메시지를 삭제할까요?"))return;var id=+b.getAttribute("data-cd"),mm=l.filter(function(x){return x.id===id})[0];
+        sb.from("chat_messages").delete().eq("id",id).then(function(x){if(x.error)return setMsg(errT(x.error));if(mm&&mm.image_path)sb.storage.from("chat").remove([mm.image_path]);chLoad(true)})}})})})}
+function chSend(){
+  if(CH.busy)return;var t=v("ct"),f=$("cf").files&&$("cf").files[0];if(!t&&!f)return setMsg("메시지나 사진을 입력해 주세요.");
+  CH.busy=true;$("cs").disabled=true;setMsg("보내는 중입니다.",true);
+  var up=f?shrink(f).then(function(blob){var path=CH.rid+"/"+Date.now()+".jpg";return sb.storage.from("chat").upload(path,blob,{contentType:"image/jpeg"}).then(function(r){if(r.error)throw r.error;return path})}):Promise.resolve(null);
+  up.then(function(path){return sb.from("chat_messages").insert({region_id:CH.rid,body:t||null,image_path:path}).select("id").single()}).then(function(r){
+    if(r.error)throw r.error;CH.busy=false;if($("cs"))$("cs").disabled=false;if($("ct"))$("ct").value="";if($("cf"))$("cf").value="";setMsg("");chLoad(true);
+    var id=r.data&&r.data.id;if(id)sb.auth.getSession().then(function(x){var tk=x&&x.data&&x.data.session&&x.data.session.access_token;if(!tk)return;
+      fetch(SB_URL+"/functions/v1/send-push",{method:"POST",headers:{apikey:SB_KEY,Authorization:"Bearer "+tk,"Content-Type":"application/json"},body:JSON.stringify({chat_id:id})}).catch(function(){})})
+  }).catch(function(e){CH.busy=false;if($("cs"))$("cs").disabled=false;setMsg(errT(e))})}
+function b64b(u){var p="=".repeat((4-u.length%4)%4),b=(u+p).replace(/-/g,"+").replace(/_/g,"/"),r=atob(b),o=new Uint8Array(r.length);for(var i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o}
+function chPush(){
+  if(!("serviceWorker" in navigator&&"PushManager" in window&&"Notification" in window))return setMsg("이 브라우저에서는 알림을 쓸 수 없습니다. 아이폰은 홈 화면에 추가한 앱에서만 가능합니다.");
+  setMsg("화면에 뜬 안내창에서 ‘허용’을 눌러 주세요.",true);var reg;
+  Notification.requestPermission().then(function(p){if(p!=="granted")throw new Error("알림이 허용되지 않았습니다. 휴대폰 설정에서 이 앱의 알림을 허용해 주세요.");
+    return navigator.serviceWorker.register("sw.js").then(function(){return navigator.serviceWorker.ready})}).then(function(r){reg=r;return sb.rpc("push_public_key")}).then(function(r){
+    if(r.data)return r.data;return fetch(SB_URL+"/functions/v1/send-push",{method:"POST",headers:{apikey:SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({action:"init"})}).then(function(x){return x.json()}).then(function(j){return j.public_key})}).then(function(k){
+    if(!k)throw new Error("알림 키를 받지 못했습니다.");return reg.pushManager.getSubscription().then(function(old){return old||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64b(k)})})}).then(function(sub){
+    var j=sub.toJSON();return sb.rpc("save_admin_push",{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth})}).then(function(r){if(r.error)throw r.error;setMsg("이 기기에서 단체 채팅 알림을 받습니다.",true);if($("cpush"))$("cpush").textContent="알림 켜짐"}).catch(function(e){setMsg(errT(e))})}
+function pwView(){
+  chStop();$("app").innerHTML=hdr()+'<div class="row" style="margin-top:8px"><button id="back">← 목록</button></div><div id="m"></div><div class="card"><h2>비밀번호 변경</h2><label for="p1">새 비밀번호 (8자 이상)</label><input id="p1" type="password" autocomplete="new-password"><label for="p2">새 비밀번호 확인</label><input id="p2" type="password" autocomplete="new-password"><div class="row"><button class="p" id="psave">변경하기</button></div></div>';
+  $("out").onclick=logout;$("back").onclick=function(){ST.view="list";draw()};
+  $("psave").onclick=function(){var a=$("p1").value,b=$("p2").value;if(a.length<8)return setMsg("비밀번호는 8자 이상이어야 합니다.");if(a!==b)return setMsg("두 비밀번호가 서로 다릅니다.");
+    sb.auth.updateUser({password:a}).then(function(r){if(r.error)return setMsg(errT(r.error));$("p1").value="";$("p2").value="";setMsg("비밀번호를 변경했습니다. 다음 로그인부터 새 비밀번호를 쓰세요.",true)})}}
+function xBind(){if($("chatb"))$("chatb").onclick=function(){ST.view="chat";draw()};if($("pwb"))$("pwb").onclick=function(){ST.view="pw";draw()}}
+(function(){var d0=draw;draw=function(m){
+  if(!CH.hash&&ME&&location.hash==="#chat"){CH.hash=true;ST.view="chat"}
+  if(ST.view!=="chat")chStop();
+  if(ST.view==="chat"){ST.msg=m||null;chatView();if(m)setMsg(m);return}
+  if(ST.view==="pw"){ST.msg=m||null;pwView();return}
+  d0(m);xBind()}})();
+if("serviceWorker" in navigator)navigator.serviceWorker.addEventListener("message",function(e){var d=e.data||{};if(d.type==="open"&&/admin\.html/.test(d.url||"")&&ME){ST.view="chat";draw()}});
 function genCode(){var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",b=new Uint8Array(8);crypto.getRandomValues(b);var s="";for(var i=0;i<8;i++)s+=a[b[i]%a.length];return s.slice(0,4)+"-"+s.slice(4)}
 function complexView(){
   var c=ST.complexes.filter(function(x){return x.id===ST.cid})[0]||{info:{},published:false,fire_station:ME.role==="station"?ME.station:""};

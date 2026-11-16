@@ -7,8 +7,8 @@ self.addEventListener("push",function(e){
     body:d.body||"",tag:d.tag||"news",icon:"app-icon-192.png",badge:"app-icon-192.png",data:{url:d.url||"./"}}))});
 self.addEventListener("notificationclick",function(e){
   e.notification.close();
-  var u=new URL((e.notification.data&&e.notification.data.url)||"./",self.registration.scope).href;
+  var u=new URL((e.notification.data&&e.notification.data.url)||"./",self.registration.scope).href,adm=/admin\.html/.test(u);
   e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){
-    for(var i=0;i<cs.length;i++){if(cs[i].url.indexOf(self.registration.scope)===0){
+    for(var i=0;i<cs.length;i++){if(cs[i].url.indexOf(self.registration.scope)===0&&/admin\.html/.test(cs[i].url)===adm){
       cs[i].postMessage({type:"open",url:u});return cs[i].focus()}}
     return self.clients.openWindow(u)}))});
