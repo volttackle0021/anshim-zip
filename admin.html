@@ -54,9 +54,10 @@ function loginView(m){
   $("signup").onclick=function(){signupView()};$("login").onclick=doLogin;$("pw").onkeydown=function(e){if(e.key==="Enter")doLogin()}}
 function doLogin(){setMsg("확인하는 중입니다.");sb.auth.signInWithPassword({email:v("em"),password:$("pw").value}).then(function(r){if(r.error)return setMsg("이메일이나 비밀번호가 맞지 않습니다.");start()})}
 function gate(t,p){ME=null;$("app").innerHTML='<h1>'+esc(t)+'</h1><div class="card"><p>'+esc(p)+'</p><div class="row"><button id="rf">새로고침</button><button id="out">로그아웃</button></div></div>';$("out").onclick=logout;$("rf").onclick=function(){start()}}
+function codeFmt(id){var e=$(id);if(!e)return;e.oninput=function(){var t=e.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,8);e.value=t.length>4?t.slice(0,4)+"-"+t.slice(4):t}}
 function signupView(m){
-  $("app").innerHTML='<h1>관리사무소 담당자 가입</h1><div class="card"><p class="muted">소방서에서 받은 가입코드가 필요합니다. 가입 후 소방서가 승인하면 사용할 수 있습니다. 이메일 확인 메일은 보내지 않으니 주소를 정확히 입력해 주세요.</p><label for="se">이메일</label><input id="se" type="email" autocomplete="username"><label for="sp">비밀번호 (8자 이상)</label><input id="sp" type="password" autocomplete="new-password"><label for="sq">비밀번호 확인</label><input id="sq" type="password" autocomplete="new-password"><label for="sc">가입코드</label><input id="sc" autocomplete="off" placeholder="XXXXX-XXXXX"><div class="row"><button class="p" id="sgo">가입</button><button id="sback">← 로그인</button></div><div id="m">'+msg(m)+'</div></div>';
-  $("sback").onclick=function(){loginView()};
+  $("app").innerHTML='<h1>관리사무소 담당자 가입</h1><div class="card"><p class="muted">소방서에서 받은 가입코드가 필요합니다. 가입 후 소방서가 승인하면 사용할 수 있습니다. 이메일 확인 메일은 보내지 않으니 주소를 정확히 입력해 주세요.</p><label for="se">이메일</label><input id="se" type="email" autocomplete="username"><label for="sp">비밀번호 (8자 이상)</label><input id="sp" type="password" autocomplete="new-password"><label for="sq">비밀번호 확인</label><input id="sq" type="password" autocomplete="new-password"><label for="sc">가입코드</label><input id="sc" autocomplete="off" autocapitalize="characters" maxlength="9" placeholder="XXXX-XXXX" style="text-transform:uppercase"><div class="row"><button class="p" id="sgo">가입</button><button id="sback">← 로그인</button></div><div id="m">'+msg(m)+'</div></div>';
+  $("sback").onclick=function(){loginView()};codeFmt("sc");
   $("sgo").onclick=function(){var em=v("se"),pw=$("sp").value,code=v("sc");
     if(!em||!code)return setMsg("이메일과 가입코드를 입력해 주세요.");if(pw.length<8)return setMsg("비밀번호는 8자 이상이어야 합니다.");if(pw!==$("sq").value)return setMsg("비밀번호 확인이 맞지 않습니다.");
     setMsg("가입하는 중입니다.");
@@ -73,8 +74,8 @@ function noRoleView(u){
     if(q&&q.status==="pending")return gate("승인 대기 중입니다","소방서에서 확인한 뒤 승인하면 사용할 수 있습니다.");
     if(q&&q.status==="rejected")return gate("가입이 승인되지 않았습니다","소방서에 문의해 주세요.");
     if(q&&q.status==="revoked")return gate("사용 권한이 해지되었습니다","소방서에 문의해 주세요.");
-    ME=null;$("app").innerHTML='<h1>가입코드 입력</h1><div class="card"><p>이 계정은 아직 관리자로 등록되지 않았습니다. 관리사무소 담당자는 소방서에서 받은 가입코드를 입력해 주세요.</p><label for="mc">가입코드</label><input id="mc" autocomplete="off" placeholder="XXXXX-XXXXX"><div class="row"><button class="p" id="mcgo">신청</button><button id="out">로그아웃</button></div><div id="m"></div></div>';
-    $("out").onclick=logout;
+    ME=null;$("app").innerHTML='<h1>가입코드 입력</h1><div class="card"><p>이 계정은 아직 관리자로 등록되지 않았습니다. 관리사무소 담당자는 소방서에서 받은 가입코드를 입력해 주세요.</p><label for="mc">가입코드</label><input id="mc" autocomplete="off" autocapitalize="characters" maxlength="9" placeholder="XXXX-XXXX" style="text-transform:uppercase"><div class="row"><button class="p" id="mcgo">신청</button><button id="out">로그아웃</button></div><div id="m"></div></div>';
+    $("out").onclick=logout;codeFmt("mc");
     $("mcgo").onclick=function(){var c=v("mc");if(!c)return setMsg("가입코드를 입력해 주세요.");
       sb.rpc("redeem_manager_code",{p_code:c}).then(function(x){
         if(x.error)return setMsg(errT(x.error));
@@ -298,7 +299,7 @@ function complexView(){
    '<div><label for="cs">담당 소방서</label><input id="cs" value="'+esc(c.fire_station)+'"'+(ME.role==="station"?' readonly':'')+' placeholder="예: 구례소방서"></div>'+
    '<div><label for="cb">사용승인일</label><input id="cb" type="date" value="'+esc(i.built)+'"></div>'+
    '<div><label for="co">관리사무소 연락처</label><input id="co" value="'+esc(i.office)+'"></div>'+
-   '<div><label for="ct">소방차 전용구역 위치</label><input id="ct" value="'+esc(i.truck)+'"></div>'+
+   '<div><label for="ct">소방차 전용구역 위치 (글)</label><input id="ct" value="'+esc(i.truck)+'"><small class="muted">사진은 아래 ‘안전정보’를 열어 맨 위 ‘소방차 전용구역 위치 사진’에서 올립니다.</small></div>'+
    '<div><label for="cm">소방안전관리자</label><input id="cm" value="'+esc(i.mgr)+'"></div></div>'+
    '<div class="chk"><input type="checkbox" id="cp"'+(c.published?' checked':'')+'><label for="cp" style="margin:0;color:inherit">주민에게 공개</label></div>'+
    '<div class="row"><button class="p" id="savec">저장</button>'+(c.id&&ME.role==="super"?'<button class="d" id="delc">단지 삭제</button>':'')+'</div></div>';
@@ -332,7 +333,7 @@ function saveComplex(c){
   var q=c.id?sb.from("complexes").update(row).eq("id",c.id).select().single():sb.from("complexes").insert(row).select().single();
   q.then(function(r){if(r.error)return setMsg(r.error.code==="23505"?"같은 이름의 단지가 이미 있습니다.":errT(r.error));
     ST.cid=r.data.id;ST.msgok=true;Promise.all([sb.from("complexes").select("id,region_id,name,address,fire_station,info,published").order("name")]).then(function(x){ST.complexes=x[0].data.filter(scopeOk);ST.view="complex";draw("저장했습니다.")})})}
-var PK=[["door","옥상 출입문 사진"],["floor","경량칸막이·대피공간 사용법 사진"],["fire","소방시설 위치 사진"]];
+var PK=[["truck","소방차 전용구역 위치 사진"],["door","옥상 출입문 사진"],["floor","경량칸막이·대피공간 사용법 사진"],["hyd","옥내소화전 위치 사진"],["panel","화재 수신반 위치 사진"]];
 function pubUrl(p){return SB_URL+"/storage/v1/object/public/photos/"+p}
 function shrink(file){return new Promise(function(ok,no){var u=URL.createObjectURL(file),im=new Image();im.onload=function(){var m=1280,w=im.width,h=im.height,k=Math.min(1,m/Math.max(w,h));var c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(function(b){b?ok(b):no(new Error("사진을 변환하지 못했습니다."))},"image/jpeg",0.82)};im.onerror=function(){no(new Error("사진을 읽지 못했습니다."))};im.src=u})}
 function photoCard(b){
@@ -357,7 +358,7 @@ function dongView(){
    fld("dm","개방 방식 설명",i.openerNote)+fld("dx","장애요인",i.obstacle,"예: 없음 / 계단 끝에 적치물")+fld("du","정보 확인일",i.updated||today())+'</div>'.replace('','')+
    '<h3>층 구간별 세대 대피시설</h3><p class="muted">층마다 다르면 구간을 나눠 입력하세요. 예: 1~4층 경량칸막이, 5층 이상 대피공간. 앱에서 일구가 문장으로 풀어 줍니다.</p><div id="rows"></div><button id="addrow" style="margin-top:8px">구간 추가</button>'+
    '<h3>동·층별로 다른 점 (일구가 알려줘요)</h3><p class="muted">동마다, 층마다 다른 내용이 있으면 쉬운 말로 적어 주세요. 앱에서 일구 말풍선으로 보입니다. 예: 101동은 옥상 문이 자동으로 열려요. 102동은 평소 잠겨 있어요.</p><textarea id="dnote" rows="4" maxlength="600">'+esc(i.note)+'</textarea>'+
-   '<h3>소방시설 위치</h3><div class="grid">'+fld("ey","옥내소화전",e.hyd)+fld("es","스프링클러",e.sprk)+fld("ep","화재 수신반",e.panel)+fld("et","계단",e.stairs)+fld("eh","복도 형태",e.hall)+fld("el","승강기",e.elev)+'</div>'+
+   '<h3>소방시설 위치</h3><div class="grid">'+fld("ey","옥내소화전 위치 (글)",e.hyd)+fld("ep","화재 수신반 위치 (글)",e.panel)+fld("et","계단",e.stairs)+fld("eh","복도 형태",e.hall)+fld("el","승강기",e.elev)+'</div>'+
    '<div class="row"><button class="p" id="saved">저장</button>'+''+'</div></div>';
   h+=photoCard(b);
   $("app").innerHTML=h;$("out").onclick=logout;
@@ -370,7 +371,7 @@ function dongView(){
   $("saved").onclick=function(){
     var n=v("dn")||"단지 전체";
     var fls=ST.rows.filter(function(r){return r[0]});
-    var info={roof:nz(v("dr")),refuge:nz(v("df")),door:nz(v("dd")),opener:nz(v("do")),openerNote:nz(v("dm")),obstacle:nz(v("dx")),updated:nz(v("du")),floors:fls.length?fls:null,photos:(b.info&&b.info.photos)||{},note:nz(v("dnote")),extra:{hyd:nz(v("ey")),sprk:nz(v("es")),panel:nz(v("ep")),stairs:nz(v("et")),hall:nz(v("eh")),elev:nz(v("el"))}};
+    var info={roof:nz(v("dr")),refuge:nz(v("df")),door:nz(v("dd")),opener:nz(v("do")),openerNote:nz(v("dm")),obstacle:nz(v("dx")),updated:nz(v("du")),floors:fls.length?fls:null,photos:(b.info&&b.info.photos)||{},note:nz(v("dnote")),extra:{hyd:nz(v("ey")),panel:nz(v("ep")),stairs:nz(v("et")),hall:nz(v("eh")),elev:nz(v("el"))}};
     var row={complex_id:ST.cid,name:n,info:info,updated_at:new Date().toISOString()};
     var q=b.id?sb.from("buildings").update(row).eq("id",b.id):sb.from("buildings").insert(row);
     q.then(function(r){if(r.error)return setMsg(errT(r.error));ST.view="complex";ST.msgok=true;draw("안전정보를 저장했습니다.")})};

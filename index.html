@@ -396,8 +396,8 @@ function info(){
   h+='<div class="card"><h3>층별 세대 대피시설</h3>';
   if(d.floors){h+='<div class="tablewrap"><table><thead><tr><th>층</th><th>시설</th><th>위치·비고</th></tr></thead><tbody>'+d.floors.map(function(r){return '<tr><td class="fl">'+esc(r[0])+'</td><td>'+esc(r[1])+'</td><td>'+esc(r[2])+'</td></tr>'}).join("")+'</tbody></table></div>'}else h+='<p>'+val(null)+'</p>';
   h+=ph(d.photos&&d.photos.floor,"경량칸막이·대피공간 사용법 사진")+'</div>';
-  h+='<div class="card"><h3>우리 아파트 소방시설 위치</h3><dl class="rows">'+rw('옥내소화전',ex.hyd)+rw('스프링클러',ex.sprk)+rw('화재 수신반',ex.panel)+'</dl>'+ph(d.photos&&d.photos.fire,"소방시설 위치 사진")+'</div>';
-  h+='<div class="card"><h3>소방차 진입과 관리사무소</h3><dl class="rows">'+rw('소방차 전용구역',ai.truck)+rw('관리사무소',ai.office)+rw('소방안전관리자',ai.mgr)+'</dl><p class="src" style="margin-top:6px">소방차 전용구역에는 주차하지 않아요. 소방차가 들어올 길을 비워 두는 일이 우리 아파트를 지키는 일이에요.</p></div>';
+  h+='<div class="card"><h3>우리 아파트 소방시설 위치</h3><dl class="rows">'+rw('옥내소화전',ex.hyd)+'</dl>'+ph(d.photos&&d.photos.hyd,"옥내소화전 위치 사진")+'<dl class="rows" style="margin-top:10px">'+rw('화재 수신반',ex.panel)+'</dl>'+ph(d.photos&&d.photos.panel,"화재 수신반 위치 사진")+((d.photos&&!d.photos.hyd&&!d.photos.panel)?ph(d.photos.fire,"소방시설 위치 사진"):"")+'</div>';
+  h+='<div class="card"><h3>소방차 진입과 관리사무소</h3><dl class="rows">'+rw('소방차 전용구역',ai.truck)+rw('관리사무소',ai.office)+rw('소방안전관리자',ai.mgr)+'</dl>'+ph(d.photos&&d.photos.truck,"소방차 전용구역 위치 사진")+'<p class="src" style="margin-top:6px">소방차 전용구역에는 주차하지 않아요. 소방차가 들어올 길을 비워 두는 일이 우리 아파트를 지키는 일이에요.</p></div>';
   h+='<div class="card call"><h3>우리 집도 119가 먼저 알려 주도록</h3><p class="sum" style="margin:6px 0 0">119 화재대피안심콜에 미리 가입해 두세요.</p><a class="btn primary linkbtn" href="https://u119.nfa.go.kr" target="_blank" rel="noopener">119안심콜 누리집에서 신청</a></div>';
   if(d.opener==="none"){
     var u=S.unlocked[ck()];
