@@ -246,7 +246,7 @@ function loadData(){
     var byc={};
     r[1].forEach(function(c){var rn=rg[c.region_id];if(!rn)return;(DATA[rn]=DATA[rn]||{})[c.name]={built:(c.info&&c.info.built)||"",roof:null,refuge:null,door:null,opener:null,openerNote:null,obstacle:null,floors:null,note:null,updated:null,photos:{}};IDS[rn+"|"+c.name]=c.id;AINFO[rn+"|"+c.name]={truck:c.info.truck||null,office:c.info.office||null,mgr:c.info.mgr||null};byc[c.id]=[rn,c.name]});
     r[2].forEach(function(b){var k=byc[b.complex_id];if(!k)return;var a=DATA[k[0]][k[1]];if(a.has)return;var i=b.info||{};
-      a.has=1;a.roof=i.roof||null;a.refuge=i.refuge||null;a.door=i.door||null;a.opener=i.opener||null;a.openerNote=i.openerNote||null;a.obstacle=i.obstacle||null;a.floors=(i.floors&&i.floors.length)?i.floors:null;a.note=i.note||null;a.updated=i.updated||null;a.photos=i.photos||{};
+      a.has=1;a.roof=i.roof||null;a.refuge=i.refuge||null;a.door=i.door||null;a.doorFloor=i.doorFloor||null;a.opener=i.opener||null;a.openerNote=i.openerNote||null;a.obstacle=i.obstacle||null;a.floors=(i.floors&&i.floors.length)?i.floors:null;a.note=i.note||null;a.updated=i.updated||null;a.photos=i.photos||{};
       EXTRA[k[0]+"|"+k[1]]=i.extra||{}});
     LOAD="ok"})}
 var S={sit:0,view:"home",sg:"",apt:"",unlocked:{},keytext:{}};
@@ -370,16 +370,17 @@ function info(){
   var ex=EXTRA[S.sg+"|"+S.apt]||{},ai=AINFO[S.sg+"|"+S.apt]||{};
   h+=nav(S.sg+" · "+S.apt)+band(esc(S.apt),'우리 아파트 안전정보',IL_FRONT);
   if(!ok)return h+'<div class="card"><span class="badge b-unk">정보 미등록</span><p>이 아파트의 정보는 아직 조사 전입니다. 구례소방서에 문의해 주세요.</p></div>'+foot();
-  var ob={auto:'<span class="badge b-ok">자동개폐장치 설치</span>',none:'<span class="badge b-no">자동개폐장치 없음</span>',unknown:'<span class="badge b-unk">확인 필요</span>'};
+  var ob={open:'<span class="badge b-ok">상시 개방</span>',auto:'<span class="badge b-ok">자동개폐장치</span>',none:'<span class="badge b-no">출입문 열쇠 보관 (평소 잠김)</span>',unknown:'<span class="badge b-unk">확인 필요</span>'};
   var kinds=[];(d.floors||[]).forEach(function(r){if(r[1]!=="해당 없음"&&kinds.indexOf(r[1])<0)kinds.push(r[1])});
-  var tl={auto:"자동으로 열림",none:"평소 잠김",unknown:"확인 필요"};
+  var tl={open:"상시 개방",auto:"자동개폐장치",none:"열쇠 보관",unknown:"확인 필요"};
   h+='<div class="tiles">'+
    '<div class="tile"><small>건축시기</small><b>'+esc(a.built.slice(0,4))+'년 사용승인</b></div>'+
    '<div class="tile"><small>지붕 형태</small><b>'+(d.roof?esc(d.roof):'미등록')+'</b></div>'+
    '<div class="tile"><small>옥상 출입문</small><b>'+(d.opener?tl[d.opener]:'미등록')+'</b></div>'+
    '<div class="tile"><small>세대 안 대피시설</small><b>'+(d.floors?(kinds.length?esc(kinds.join("·")):'없음'):'미등록')+'</b></div></div>';
   var say=[];
-  if(d.opener==="auto")say.push('아래로 내려갈 수 없을 때는 옥상으로 대피할 수 있어요. 옥상 문은 불이 나면 자동으로 열려요.');
+  if(d.opener==="open")say.push('아래로 내려갈 수 없을 때는 옥상으로 대피할 수 있어요. 옥상 문은 늘 열려 있어요.');
+  else if(d.opener==="auto")say.push('아래로 내려갈 수 없을 때는 옥상으로 대피할 수 있어요. 옥상 문은 불이 나면 자동으로 열려요.');
   else if(d.opener==="none")say.push('옥상 문은 평소 잠겨 있어요. 열쇠 위치는 입주민 전용 정보에서 확인하세요.');
   else say.push('옥상 문이 어떤 방식인지는 아직 확인 중이에요.');
   if(d.floors&&d.floors.length>1){d.floors.forEach(function(r){say.push(floorSay(r))});say.push('위치와 사용법을 미리 알아 두세요.')}
@@ -389,14 +390,14 @@ function info(){
   h+='<div class="card"><h3>불이 나면 우리 아파트에서는</h3><div class="say"><img class="gi" src="'+IL_FRONT+'" alt="일구"><div class="bubble"><p style="margin:0">'+say.join(' ')+'</p></div></div></div>';
   if(d.note)h+='<div class="card"><h3>일구가 알려 드려요</h3><div class="say"><img class="gi" src="'+IL_FRONT+'" alt="일구"><div class="bubble"><p style="margin:0;white-space:pre-line">'+esc(d.note)+'</p></div></div></div>';
   h+='<div class="card"><h3>옥상과 대피 경로</h3><dl class="rows">'+
-   rw('옥상 대피공간',d.refuge)+rw('옥상 출입문',d.door)+
+   rw('옥상 대피공간',d.refuge)+rw('옥상 출입문 위치',d.door)+rw('옥상 출입문 층수',d.doorFloor)+
    '<div class="row"><dt>출입문 개방</dt><dd>'+(d.opener?ob[d.opener]:val(null))+(d.openerNote?'<small>'+esc(d.openerNote)+'</small>':'')+'</dd></div>'+
    '<div class="row"><dt>장애요인</dt><dd>'+chk(d.obstacle)+'</dd></div></dl>'+
    ph(d.photos&&d.photos.door,"옥상 출입문 사진")+'</div>';
   h+='<div class="card"><h3>층별 세대 대피시설</h3>';
   if(d.floors){h+='<div class="tablewrap"><table><thead><tr><th>층</th><th>시설</th><th>위치·비고</th></tr></thead><tbody>'+d.floors.map(function(r){return '<tr><td class="fl">'+esc(r[0])+'</td><td>'+esc(r[1])+'</td><td>'+esc(r[2])+'</td></tr>'}).join("")+'</tbody></table></div>'}else h+='<p>'+val(null)+'</p>';
   h+=ph(d.photos&&d.photos.floor,"경량칸막이·대피공간 사용법 사진")+'</div>';
-  h+='<div class="card"><h3>우리 아파트 소방시설 위치</h3><dl class="rows">'+rw('옥내소화전',ex.hyd)+'</dl>'+ph(d.photos&&d.photos.hyd,"옥내소화전 위치 사진")+'<dl class="rows" style="margin-top:10px">'+rw('화재 수신반',ex.panel)+'</dl>'+ph(d.photos&&d.photos.panel,"화재 수신반 위치 사진")+((d.photos&&!d.photos.hyd&&!d.photos.panel)?ph(d.photos.fire,"소방시설 위치 사진"):"")+'</div>';
+  h+='<div class="card"><h3>우리 아파트 소방시설 위치</h3><dl class="rows">'+rw('복도 형태',ex.hall)+rw('피난계단 위치',ex.stairs)+rw('옥내소화전',ex.hyd)+'</dl>'+ph(d.photos&&d.photos.hyd,"옥내소화전 위치 사진")+'<dl class="rows" style="margin-top:10px">'+rw('화재 수신반',ex.panel)+'</dl>'+ph(d.photos&&d.photos.panel,"화재 수신반 위치 사진")+((d.photos&&!d.photos.hyd&&!d.photos.panel)?ph(d.photos.fire,"소방시설 위치 사진"):"")+'</div>';
   h+='<div class="card"><h3>소방차 진입과 관리사무소</h3><dl class="rows">'+rw('소방차 전용구역',ai.truck)+rw('관리사무소',ai.office)+rw('소방안전관리자',ai.mgr)+'</dl>'+ph(d.photos&&d.photos.truck,"소방차 전용구역 위치 사진")+'<p class="src" style="margin-top:6px">소방차 전용구역에는 주차하지 않아요. 소방차가 들어올 길을 비워 두는 일이 우리 아파트를 지키는 일이에요.</p></div>';
   h+='<div class="card call"><h3>우리 집도 119가 먼저 알려 주도록</h3><p class="sum" style="margin:6px 0 0">119 화재대피안심콜에 미리 가입해 두세요.</p><a class="btn primary linkbtn" href="https://u119.nfa.go.kr" target="_blank" rel="noopener">119안심콜 누리집에서 신청</a></div>';
   if(d.opener==="none"){
